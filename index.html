@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DataBridge - Interface API JSON</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0;
+            min-height: 600px;
+        }
+
+        .left-panel {
+            background: #f8f9fa;
+            padding: 30px;
+            border-right: 1px solid #e9ecef;
+        }
+
+        .right-panel {
+            padding: 30px;
+            background: white;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #4facfe;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 25px;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            flex: 1;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(79, 172, 254, 0.4);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+        }
+
+        .filters-section {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid #e9ecef;
+            margin-bottom: 25px;
+        }
+
+        .filters-section h3 {
+            margin-bottom: 15px;
+            color: #333;
+            font-size: 1.2rem;
+        }
+
+        .filter-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            padding: 8px;
+            border-radius: 5px;
+            transition: background-color 0.2s ease;
+        }
+
+        .filter-item:hover {
+            background-color: #f8f9fa;
+        }
+
+        .filter-item input[type="checkbox"] {
+            margin-right: 10px;
+            transform: scale(1.2);
+        }
+
+        .filter-item label {
+            margin: 0;
+            cursor: pointer;
+            flex: 1;
+            font-size: 14px;
+        }
+
+        .refresh-controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 25px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+
+        .refresh-controls label {
+            margin: 0;
+            font-weight: 600;
+        }
+
+        .refresh-controls input[type="number"] {
+            width: 80px;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        .results-section {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .results-section h3 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .json-display {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .esp32-section {
+            background: #e8f5e8;
+            border: 2px solid #28a745;
+            border-radius: 10px;
+            padding: 20px;
+        }
+
+        .esp32-section h3 {
+            color: #28a745;
+            margin-bottom: 15px;
+        }
+
+        .esp32-url {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            word-break: break-all;
+            margin-bottom: 15px;
+        }
+
+        .copy-btn {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .copy-btn:hover {
+            background: #218838;
+        }
+
+        .status {
+            padding: 10px 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .status.loading {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .left-panel {
+                border-right: none;
+                border-bottom: 1px solid #e9ecef;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .button-group {
+                flex-direction: column;
+            }
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #4facfe;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🌉 DataBridge</h1>
+            <p>Interface pour récupérer et filtrer des données JSON depuis n'importe quelle API</p>
+        </div>
+
+        <div class="main-content">
+            <!-- Panneau de gauche : Configuration et filtres -->
+            <div class="left-panel">
+                <div class="form-group">
+                    <label for="apiUrl">URL de l'API JSON :</label>
+                    <input type="url" id="apiUrl" placeholder="https://api.exemple.com/data" value="">
+                </div>
+
+                <div class="button-group">
+                    <button class="btn btn-primary" onclick="fetchData()">
+                        <span id="fetchText">Récupérer les données</span>
+                        <span id="fetchSpinner" class="loading-spinner" style="display: none;"></span>
+                    </button>
+                    <button class="btn btn-secondary" onclick="clearData()">Effacer</button>
+                </div>
+
+                <div class="refresh-controls">
+                    <label for="refreshInterval">Rafraîchissement auto (secondes) :</label>
+                    <input type="number" id="refreshInterval" value="30" min="5" max="300">
+                    <button class="btn btn-success" onclick="toggleAutoRefresh()" id="autoRefreshBtn">
+                        Démarrer
+                    </button>
+                </div>
+
+                <div class="filters-section" id="filtersSection" style="display: none;">
+                    <h3>📋 Filtres disponibles :</h3>
+                    <div id="filtersList"></div>
+                    <button class="btn btn-secondary" onclick="selectAllFilters()" style="margin-top: 10px;">
+                        Tout sélectionner
+                    </button>
+                    <button class="btn btn-secondary" onclick="deselectAllFilters()" style="margin-top: 5px;">
+                        Tout désélectionner
+                    </button>
+                </div>
+            </div>
+
+            <!-- Panneau de droite : Résultats -->
+            <div class="right-panel">
+                <div id="status"></div>
+
+                <div class="results-section">
+                    <h3>📊 Résultats filtrés :</h3>
+                    <div id="jsonDisplay" class="json-display">
+                        Aucune donnée chargée. Veuillez saisir une URL d'API et cliquer sur "Récupérer les données".
+                    </div>
+                </div>
+
+                <div class="esp32-section" id="esp32Section" style="display: none;">
+                    <h3>🔌 URL ESP32 :</h3>
+                    <div id="esp32Url" class="esp32-url"></div>
+                    <button class="copy-btn" onclick="copyEsp32Url()">Copier l'URL</button>
+                    <p style="margin-top: 10px; font-size: 14px; color: #666;">
+                        Cette URL contient uniquement les champs sélectionnés pour une utilisation optimale avec l'ESP32.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentData = null;
+        let filteredData = null;
+        let autoRefreshInterval = null;
+        let isAutoRefreshActive = false;
+
+        // Proxy CORS pour contourner les restrictions
+        const CORS_PROXY = 'https://api.allorigins.win/raw?url=';
+
+        // Fonction pour récupérer les données depuis l'API
+        async function fetchData() {
+            const url = document.getElementById('apiUrl').value.trim();
+            if (!url) {
+                showStatus('Veuillez saisir une URL d\'API', 'error');
+                return;
+            }
+
+            showStatus('Chargement des données...', 'loading');
+            showFetchSpinner(true);
+
+            try {
+                // Utilisation du proxy CORS
+                const proxyUrl = CORS_PROXY + encodeURIComponent(url);
+                const response = await fetch(proxyUrl);
+                
+                if (!response.ok) {
+                    throw new Error(`Erreur HTTP: ${response.status}`);
+                }
+
+                const data = await response.json();
+                currentData = data;
+                
+                showStatus('Données récupérées avec succès !', 'success');
+                generateFilters(data);
+                applyFilters();
+                
+            } catch (error) {
+                console.error('Erreur lors de la récupération des données:', error);
+                showStatus(`Erreur: ${error.message}`, 'error');
+            } finally {
+                showFetchSpinner(false);
+            }
+        }
+
+        // Fonction pour afficher le spinner de chargement
+        function showFetchSpinner(show) {
+            const fetchText = document.getElementById('fetchText');
+            const fetchSpinner = document.getElementById('fetchSpinner');
+            
+            if (show) {
+                fetchText.style.display = 'none';
+                fetchSpinner.style.display = 'inline-block';
+            } else {
+                fetchText.style.display = 'inline';
+                fetchSpinner.style.display = 'none';
+            }
+        }
+
+        // Fonction pour afficher le statut
+        function showStatus(message, type) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerHTML = `<div class="status ${type}">${message}</div>`;
+        }
+
+        // Fonction pour générer les filtres basés sur les données
+        function generateFilters(data) {
+            const filtersSection = document.getElementById('filtersSection');
+            const filtersList = document.getElementById('filtersList');
+            
+            if (!data || typeof data !== 'object') {
+                filtersSection.style.display = 'none';
+                return;
+            }
+
+            const fields = extractFields(data);
+            filtersList.innerHTML = '';
+
+            fields.forEach(field => {
+                const filterItem = document.createElement('div');
+                filterItem.className = 'filter-item';
+                filterItem.innerHTML = `
+                    <input type="checkbox" id="filter_${field}" value="${field}" onchange="applyFilters()">
+                    <label for="filter_${field}">${field}</label>
+                `;
+                filtersList.appendChild(filterItem);
+            });
+
+            filtersSection.style.display = 'block';
+        }
+
+        // Fonction pour extraire tous les champs d'un objet JSON
+        function extractFields(obj, prefix = '') {
+            const fields = new Set();
+            
+            function traverse(current, path = '') {
+                if (Array.isArray(current)) {
+                    current.forEach((item, index) => {
+                        if (typeof item === 'object' && item !== null) {
+                            traverse(item, `${path}[${index}]`);
+                        }
+                    });
+                } else if (typeof current === 'object' && current !== null) {
+                    Object.keys(current).forEach(key => {
+                        const fullPath = path ? `${path}.${key}` : key;
+                        fields.add(fullPath);
+                        traverse(current[key], fullPath);
+                    });
+                }
+            }
+            
+            traverse(obj);
+            return Array.from(fields).sort();
+        }
+
+        // Fonction pour appliquer les filtres
+        function applyFilters() {
+            if (!currentData) return;
+
+            const selectedFilters = Array.from(document.querySelectorAll('#filtersList input[type="checkbox"]:checked'))
+                .map(checkbox => checkbox.value);
+
+            if (selectedFilters.length === 0) {
+                filteredData = currentData;
+            } else {
+                filteredData = filterObjectByFields(currentData, selectedFilters);
+            }
+
+            displayResults(filteredData);
+            generateEsp32Url(selectedFilters);
+        }
+
+        // Fonction pour filtrer un objet selon les champs sélectionnés
+        function filterObjectByFields(obj, fields) {
+            const result = {};
+            
+            fields.forEach(field => {
+                const value = getNestedValue(obj, field);
+                if (value !== undefined) {
+                    setNestedValue(result, field, value);
+                }
+            });
+            
+            return result;
+        }
+
+        // Fonction pour obtenir une valeur imbriquée
+        function getNestedValue(obj, path) {
+            return path.split('.').reduce((current, key) => {
+                if (current && typeof current === 'object') {
+                    return current[key];
+                }
+                return undefined;
+            }, obj);
+        }
+
+        // Fonction pour définir une valeur imbriquée
+        function setNestedValue(obj, path, value) {
+            const keys = path.split('.');
+            const lastKey = keys.pop();
+            const target = keys.reduce((current, key) => {
+                if (!(key in current)) {
+                    current[key] = {};
+                }
+                return current[key];
+            }, obj);
+            target[lastKey] = value;
+        }
+
+        // Fonction pour afficher les résultats
+        function displayResults(data) {
+            const jsonDisplay = document.getElementById('jsonDisplay');
+            jsonDisplay.textContent = JSON.stringify(data, null, 2);
+        }
+
+        // Fonction pour générer l'URL ESP32
+        function generateEsp32Url(selectedFilters) {
+            const esp32Section = document.getElementById('esp32Section');
+            const esp32Url = document.getElementById('esp32Url');
+            
+            if (selectedFilters.length === 0) {
+                esp32Section.style.display = 'none';
+                return;
+            }
+
+            const baseUrl = document.getElementById('apiUrl').value.trim();
+            if (!baseUrl) {
+                esp32Section.style.display = 'none';
+                return;
+            }
+
+            const filtersParam = selectedFilters.join(',');
+            const esp32UrlValue = `${baseUrl}?filters=${encodeURIComponent(filtersParam)}`;
+            
+            esp32Url.textContent = esp32UrlValue;
+            esp32Section.style.display = 'block';
+        }
+
+        // Fonction pour copier l'URL ESP32
+        function copyEsp32Url() {
+            const esp32Url = document.getElementById('esp32Url').textContent;
+            navigator.clipboard.writeText(esp32Url).then(() => {
+                showStatus('URL ESP32 copiée dans le presse-papiers !', 'success');
+            }).catch(err => {
+                console.error('Erreur lors de la copie:', err);
+                showStatus('Erreur lors de la copie', 'error');
+            });
+        }
+
+        // Fonction pour sélectionner tous les filtres
+        function selectAllFilters() {
+            const checkboxes = document.querySelectorAll('#filtersList input[type="checkbox"]');
+            checkboxes.forEach(checkbox => checkbox.checked = true);
+            applyFilters();
+        }
+
+        // Fonction pour désélectionner tous les filtres
+        function deselectAllFilters() {
+            const checkboxes = document.querySelectorAll('#filtersList input[type="checkbox"]');
+            checkboxes.forEach(checkbox => checkbox.checked = false);
+            applyFilters();
+        }
+
+        // Fonction pour effacer les données
+        function clearData() {
+            currentData = null;
+            filteredData = null;
+            document.getElementById('apiUrl').value = '';
+            document.getElementById('jsonDisplay').textContent = 'Aucune donnée chargée. Veuillez saisir une URL d\'API et cliquer sur "Récupérer les données".';
+            document.getElementById('filtersSection').style.display = 'none';
+            document.getElementById('esp32Section').style.display = 'none';
+            document.getElementById('status').innerHTML = '';
+        }
+
+        // Fonction pour basculer le rafraîchissement automatique
+        function toggleAutoRefresh() {
+            const interval = parseInt(document.getElementById('refreshInterval').value);
+            const button = document.getElementById('autoRefreshBtn');
+
+            if (isAutoRefreshActive) {
+                clearInterval(autoRefreshInterval);
+                isAutoRefreshActive = false;
+                button.textContent = 'Démarrer';
+                button.className = 'btn btn-success';
+                showStatus('Rafraîchissement automatique arrêté', 'success');
+            } else {
+                if (interval < 5 || interval > 300) {
+                    showStatus('L\'intervalle doit être entre 5 et 300 secondes', 'error');
+                    return;
+                }
+                
+                autoRefreshInterval = setInterval(fetchData, interval * 1000);
+                isAutoRefreshActive = true;
+                button.textContent = 'Arrêter';
+                button.className = 'btn btn-secondary';
+                showStatus(`Rafraîchissement automatique activé (${interval}s)`, 'success');
+            }
+        }
+
+        // Fonction pour gérer la touche Entrée dans le champ URL
+        document.getElementById('apiUrl').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                fetchData();
+            }
+        });
+
+        // Exemple d'URL par défaut pour les tests
+        document.addEventListener('DOMContentLoaded', function() {
+            // Vous pouvez ajouter une URL d'exemple ici si nécessaire
+            // document.getElementById('apiUrl').value = 'https://jsonplaceholder.typicode.com/posts/1';
+        });
+    </script>
+</body>
+</html>
