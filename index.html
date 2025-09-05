@@ -186,13 +186,29 @@ curl -s -G "https://data.bordeaux-metropole.fr/geojson/features/pc_captv_p" \
       const container = document.getElementById('fieldsContainer');
       container.innerHTML = '';
       if (!jsonData) return;
-      // Détection générique des champs
-      let fields = [];
+      // Fonction récursive pour générer l'arborescence des champs
+      function createTree(obj, path = []) {
+        if (typeof obj !== 'object' || obj === null) return;
+        const ul = document.createElement('ul');
+        ul.style.listStyle = 'none';
+        ul.style.marginLeft = '1em';
+        Object.keys(obj).forEach(key => {
+          const li = document.createElement('li');
+          const id = 'field_' + [...path, key].join('__');
+          li.innerHTML = `<label style="font-weight:normal;"><input type="checkbox" id="${id}" /> ${key}</label>`;
+          // Ajout récursif si sous-objet
+          if (typeof obj[key] === 'object' && obj[key] !== null && !Array.isArray(obj[key])) {
+            li.appendChild(createTree(obj[key], [...path, key]));
+          }
+          ul.appendChild(li);
+        });
+        return ul;
+      }
+      // Détection du premier objet à explorer
       let firstObj = null;
       if (Array.isArray(jsonData) && jsonData.length) {
         firstObj = jsonData[0];
       } else if (typeof jsonData === 'object' && jsonData !== null) {
-        // Si le JSON est un objet, on cherche le premier tableau d'objets ou on prend l'objet lui-même
         const arrKey = Object.keys(jsonData).find(k => Array.isArray(jsonData[k]) && jsonData[k].length && typeof jsonData[k][0] === 'object');
         if (arrKey) {
           firstObj = jsonData[arrKey][0];
@@ -200,53 +216,77 @@ curl -s -G "https://data.bordeaux-metropole.fr/geojson/features/pc_captv_p" \
           firstObj = jsonData;
         }
       }
-      if (firstObj && typeof firstObj === 'object') {
-        fields = Object.keys(firstObj);
-      }
-      if (!fields.length) return;
-      // Cases à cocher
-      fields.forEach(f => {
-        const id = 'field_' + f;
-        const label = document.createElement('label');
-        label.style.fontWeight = 'normal';
-        label.innerHTML = `<input type="checkbox" id="${id}" checked /> ${f}`;
-        container.appendChild(label);
-        document.getElementById(id).addEventListener('change', filterData);
+      if (!firstObj || typeof firstObj !== 'object') return;
+      container.appendChild(createTree(firstObj));
+      // Ajout des listeners
+      container.querySelectorAll('input[type=checkbox]').forEach(cb => {
+        cb.addEventListener('change', filterData);
       });
     }
 
     // --- Filtrage des données selon les champs sélectionnés ---
     function filterData() {
       if (!jsonData) return;
-      let fields = [];
+      // Récupère les chemins cochés
       const container = document.getElementById('fieldsContainer');
-      container.querySelectorAll('input[type=checkbox]:checked').forEach(cb => {
-        fields.push(cb.id.replace('field_', ''));
-      });
-      let filtered = [];
-      // Générique : tableau ou objet
-      if (Array.isArray(jsonData)) {
-        filtered = jsonData.map(obj => {
-          const out = {};
-          fields.forEach(k => { out[k] = obj[k]; });
-          return out;
+      const checked = Array.from(container.querySelectorAll('input[type=checkbox]:checked'));
+      const paths = checked.map(cb => cb.id.replace('field_', '').split('__'));
+      // Fonction pour extraire la valeur selon le chemin
+      function extract(obj, path) {
+        let val = obj;
+        for (const p of path) {
+          if (val && typeof val === 'object' && p in val) {
+            val = val[p];
+          } else {
+            return undefined;
+          }
+        }
+        return val;
+      }
+      // Fonction pour construire l'arborescence filtrée
+      function buildTree(obj, paths) {
+        const tree = {};
+        paths.forEach(path => {
+          let ref = tree;
+          let val = obj;
+          for (let i = 0; i < path.length; i++) {
+            const p = path[i];
+            if (i === path.length - 1) {
+              ref[p] = extract(obj, path);
+            } else {
+              ref[p] = ref[p] || {};
+              ref = ref[p];
+              val = val && val[p];
+            }
+          }
         });
+        return tree;
+      }
+      let filtered = [];
+      if (Array.isArray(jsonData)) {
+        filtered = jsonData.map(obj => buildTree(obj, paths));
       } else if (typeof jsonData === 'object' && jsonData !== null) {
-        // Cherche le premier tableau d'objets
         const arrKey = Object.keys(jsonData).find(k => Array.isArray(jsonData[k]) && jsonData[k].length && typeof jsonData[k][0] === 'object');
         if (arrKey) {
-          filtered = jsonData[arrKey].map(obj => {
-            const out = {};
-            fields.forEach(k => { out[k] = obj[k]; });
-            return out;
-          });
+          filtered = jsonData[arrKey].map(obj => buildTree(obj, paths));
         } else {
-          const out = {};
-          fields.forEach(k => { out[k] = jsonData[k]; });
-          filtered = [out];
+          filtered = [buildTree(jsonData, paths)];
         }
       }
-      document.getElementById('filtered').textContent = JSON.stringify(filtered, null, 2);
+      // Affichage arborescent
+      function renderTree(obj, indent = 0) {
+        if (typeof obj !== 'object' || obj === null) return JSON.stringify(obj);
+        let html = '';
+        for (const k in obj) {
+          if (typeof obj[k] === 'object' && obj[k] !== null) {
+            html += ' '.repeat(indent) + k + ':\n' + renderTree(obj[k], indent + 2);
+          } else {
+            html += ' '.repeat(indent) + k + ': ' + obj[k] + '\n';
+          }
+        }
+        return html;
+      }
+      document.getElementById('filtered').textContent = filtered.map(f => renderTree(f)).join('\n---\n');
       // Génération JSON allégé pour ESP32
       document.getElementById('light').textContent = JSON.stringify(filtered, null, 0);
     }
