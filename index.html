@@ -539,7 +539,7 @@
             
             if (Array.isArray(obj)) {
                 obj.forEach((item, index) => {
-                    const itemPath = `${path}[${index}]`;
+                    const itemPath = path ? `${path}[${index}]` : `[${index}]`;
                     if (typeof item === 'object' && item !== null) {
                         result[`[${index}]`] = buildTreeStructure(item, itemPath);
                     } else {
@@ -585,7 +585,8 @@
                 item.className = 'tree-item';
                 
                 const toggleIcon = hasChildren ? '▶' : '';
-                const folderIcon = Array.isArray(node) ? '📁' : '📂';
+                const isArrayItem = key.startsWith('[') && key.endsWith(']');
+                const folderIcon = isArrayItem ? '📁' : '📂';
                 
                 item.innerHTML = `
                     <div class="tree-toggle ${hasChildren ? '' : 'leaf'}" onclick="toggleTreeNode(this)">
@@ -705,9 +706,20 @@
 
         // Fonction pour obtenir une valeur imbriquée
         function getNestedValue(obj, path) {
-            return path.split('.').reduce((current, key) => {
+            if (!path) return obj;
+            
+            // Gérer les chemins avec des indices de tableau
+            const parts = path.split(/[\.\[\]]+/).filter(part => part !== '');
+            
+            return parts.reduce((current, part) => {
                 if (current && typeof current === 'object') {
-                    return current[key];
+                    // Si c'est un nombre, traiter comme un index de tableau
+                    const index = parseInt(part);
+                    if (!isNaN(index)) {
+                        return current[index];
+                    } else {
+                        return current[part];
+                    }
                 }
                 return undefined;
             }, obj);
@@ -715,15 +727,43 @@
 
         // Fonction pour définir une valeur imbriquée
         function setNestedValue(obj, path, value) {
-            const keys = path.split('.');
-            const lastKey = keys.pop();
-            const target = keys.reduce((current, key) => {
-                if (!(key in current)) {
-                    current[key] = {};
+            if (!path) return;
+            
+            const parts = path.split(/[\.\[\]]+/).filter(part => part !== '');
+            const lastPart = parts.pop();
+            
+            const target = parts.reduce((current, part) => {
+                if (current && typeof current === 'object') {
+                    const index = parseInt(part);
+                    if (!isNaN(index)) {
+                        if (!Array.isArray(current)) {
+                            current = [];
+                        }
+                        if (!(index in current)) {
+                            current[index] = {};
+                        }
+                        return current[index];
+                    } else {
+                        if (!(part in current)) {
+                            current[part] = {};
+                        }
+                        return current[part];
+                    }
                 }
-                return current[key];
+                return undefined;
             }, obj);
-            target[lastKey] = value;
+            
+            if (target && typeof target === 'object') {
+                const index = parseInt(lastPart);
+                if (!isNaN(index)) {
+                    if (!Array.isArray(target)) {
+                        target = [];
+                    }
+                    target[index] = value;
+                } else {
+                    target[lastPart] = value;
+                }
+            }
         }
 
         // Fonction pour extraire seulement les valeurs en format texte simple
