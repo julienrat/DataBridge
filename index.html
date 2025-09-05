@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DataBridge API Viewer</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f8f9fa;
+      color: #222;
+    }
+    .container {
+      max-width: 700px;
+      margin: 2rem auto;
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+      padding: 2rem;
+    }
+    h1 {
+      font-size: 1.7rem;
+      margin-bottom: 1rem;
+      text-align: center;
+    }
+    label {
+      font-weight: bold;
+      margin-top: 1rem;
+      display: block;
+    }
+    input, select {
+      width: 100%;
+      padding: 0.5rem;
+      margin: 0.3rem 0 1rem 0;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 1rem;
+    }
+    .row {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    .row > div {
+      flex: 1 1 200px;
+    }
+    button {
+      background: #007bff;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      padding: 0.7rem 1.2rem;
+      font-size: 1rem;
+      cursor: pointer;
+      margin-right: 0.5rem;
+    }
+    button:disabled {
+      background: #aaa;
+      cursor: not-allowed;
+    }
+    .results, .filtered, .light {
+      background: #f1f3f4;
+      border-radius: 6px;
+      padding: 1rem;
+      margin-top: 1rem;
+      font-size: 0.97rem;
+      overflow-x: auto;
+      white-space: pre-wrap;
+    }
+    .fields {
+      margin: 1rem 0;
+    }
+    @media (max-width: 600px) {
+      .container { padding: 1rem; }
+      .row { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>DataBridge API Viewer</h1>
+    <!-- Formulaire principal -->
+    <form id="apiForm" autocomplete="off">
+      <label for="fullUrl">URL complète de l'API JSON</label>
+      <input type="url" id="fullUrl" placeholder="https://..." />
+      <div style="text-align:center; margin:0.5rem 0;">OU</div>
+      <div class="row">
+        <div>
+          <label for="gid">gid</label>
+          <input type="number" id="gid" placeholder="Ex: 2447" />
+        </div>
+        <div>
+          <label for="key">key</label>
+          <input type="text" id="key" placeholder="Ex: 610F7N264Q" />
+        </div>
+        <div>
+          <label for="crs">crs</label>
+          <input type="text" id="crs" placeholder="Ex: epsg:4326" />
+        </div>
+      </div>
+      <label for="refreshInterval">Rafraîchissement auto (sec)</label>
+      <input type="number" id="refreshInterval" min="0" value="0" />
+      <button type="button" id="fetchBtn">Récupérer</button>
+      <button type="button" id="refreshBtn">Rafraîchir</button>
+    </form>
+    <!-- Section champs dynamiques -->
+    <div class="fields" id="fieldsContainer"></div>
+    <!-- Résultats JSON brut -->
+    <label>Résultats JSON</label>
+    <div class="results" id="results"></div>
+    <!-- Résultats filtrés -->
+    <label>Données filtrées</label>
+    <div class="filtered" id="filtered"></div>
+    <!-- JSON allégé pour ESP32 -->
+    <label>JSON allégé (ESP32)</label>
+    <div class="light" id="light"></div>
+curl -s -G "https://data.bordeaux-metropole.fr/geojson/features/pc_captv_p" \
+  --data-urlencode "crs=epsg:4326" \
+  --data-urlencode "filter={\"gid\": 2447}" \
+  --data-urlencode "key=610F7N264Q"
+  </div>
+  <script>
+    // --- Variables globales ---
+    let jsonData = null;
+    let autoRefreshTimer = null;
+
+    // --- Construction de l'URL à partir des paramètres ---
+    function buildUrl() {
+      const fullUrl = document.getElementById('fullUrl').value.trim();
+      if (fullUrl) return fullUrl;
+      // Paramètres séparés
+      const gid = document.getElementById('gid').value.trim();
+      const key = document.getElementById('key').value.trim();
+      const crs = document.getElementById('crs').value.trim();
+      if (!gid || !key || !crs) return '';
+      // Exemple d'API Bordeaux
+      const base = 'https://data.bordeaux-metropole.fr/geojson/features/pc_captv_p';
+      const params = new URLSearchParams();
+      params.append('crs', crs);
+      params.append('filter', JSON.stringify({ gid: Number(gid) }));
+      params.append('key', key);
+      return `${base}?${params.toString()}`;
+    }
+
+    // --- Fetch des données JSON ---
+    async function fetchData() {
+      const url = buildUrl();
+      if (!url) {
+        alert('Veuillez saisir une URL complète ou tous les paramètres.');
+        return;
+      }
+      document.getElementById('fetchBtn').disabled = true;
+      try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('Erreur HTTP ' + res.status);
+        jsonData = await res.json();
+        showResults();
+        buildFields();
+        filterData();
+      } catch (e) {
+        document.getElementById('results').textContent = 'Erreur: ' + e.message;
+        document.getElementById('filtered').textContent = '';
+        document.getElementById('light').textContent = '';
+      } finally {
+        document.getElementById('fetchBtn').disabled = false;
+      }
+    }
+
+    // --- Affichage JSON brut ---
+    function showResults() {
+      document.getElementById('results').textContent = JSON.stringify(jsonData, null, 2);
+    }
+
+    // --- Construction dynamique des champs à filtrer ---
+    function buildFields() {
+      const container = document.getElementById('fieldsContainer');
+      container.innerHTML = '';
+      if (!jsonData) return;
+      // Détection générique des champs
+      let fields = [];
+      let firstObj = null;
+      if (Array.isArray(jsonData) && jsonData.length) {
+        firstObj = jsonData[0];
+      } else if (typeof jsonData === 'object' && jsonData !== null) {
+        // Si le JSON est un objet, on cherche le premier tableau d'objets ou on prend l'objet lui-même
+        const arrKey = Object.keys(jsonData).find(k => Array.isArray(jsonData[k]) && jsonData[k].length && typeof jsonData[k][0] === 'object');
+        if (arrKey) {
+          firstObj = jsonData[arrKey][0];
+        } else {
+          firstObj = jsonData;
+        }
+      }
+      if (firstObj && typeof firstObj === 'object') {
+        fields = Object.keys(firstObj);
+      }
+      if (!fields.length) return;
+      // Cases à cocher
+      fields.forEach(f => {
+        const id = 'field_' + f;
+        const label = document.createElement('label');
+        label.style.fontWeight = 'normal';
+        label.innerHTML = `<input type="checkbox" id="${id}" checked /> ${f}`;
+        container.appendChild(label);
+        document.getElementById(id).addEventListener('change', filterData);
+      });
+    }
+
+    // --- Filtrage des données selon les champs sélectionnés ---
+    function filterData() {
+      if (!jsonData) return;
+      let fields = [];
+      const container = document.getElementById('fieldsContainer');
+      container.querySelectorAll('input[type=checkbox]:checked').forEach(cb => {
+        fields.push(cb.id.replace('field_', ''));
+      });
+      let filtered = [];
+      // Générique : tableau ou objet
+      if (Array.isArray(jsonData)) {
+        filtered = jsonData.map(obj => {
+          const out = {};
+          fields.forEach(k => { out[k] = obj[k]; });
+          return out;
+        });
+      } else if (typeof jsonData === 'object' && jsonData !== null) {
+        // Cherche le premier tableau d'objets
+        const arrKey = Object.keys(jsonData).find(k => Array.isArray(jsonData[k]) && jsonData[k].length && typeof jsonData[k][0] === 'object');
+        if (arrKey) {
+          filtered = jsonData[arrKey].map(obj => {
+            const out = {};
+            fields.forEach(k => { out[k] = obj[k]; });
+            return out;
+          });
+        } else {
+          const out = {};
+          fields.forEach(k => { out[k] = jsonData[k]; });
+          filtered = [out];
+        }
+      }
+      document.getElementById('filtered').textContent = JSON.stringify(filtered, null, 2);
+      // Génération JSON allégé pour ESP32
+      document.getElementById('light').textContent = JSON.stringify(filtered, null, 0);
+    }
+
+    // --- Rafraîchissement manuel ---
+    document.getElementById('fetchBtn').onclick = fetchData;
+    document.getElementById('refreshBtn').onclick = fetchData;
+
+    // --- Rafraîchissement automatique ---
+    document.getElementById('refreshInterval').onchange = function() {
+      const val = Number(this.value);
+      if (autoRefreshTimer) clearInterval(autoRefreshTimer);
+      if (val > 0) {
+        autoRefreshTimer = setInterval(fetchData, val * 1000);
+      }
+    };
+
+    // --- Commentaires pour maintenance ---
+    // - buildUrl() : génère l'URL selon saisie utilisateur
+    // - fetchData() : récupère et affiche le JSON
+    // - buildFields() : génère dynamiquement les cases à cocher
+    // - filterData() : filtre et affiche les données selon sélection
+    // - Rafraîchissement manuel/auto : boutons et intervalle
+    // - Interface responsive et minimaliste
+  </script>
+</body>
+</html>
