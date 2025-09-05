@@ -732,12 +732,20 @@
             const parts = path.split(/[\.\[\]]+/).filter(part => part !== '');
             const lastPart = parts.pop();
             
-            const target = parts.reduce((current, part) => {
+            let target = parts.reduce((current, part) => {
                 if (current && typeof current === 'object') {
                     const index = parseInt(part);
                     if (!isNaN(index)) {
                         if (!Array.isArray(current)) {
-                            current = [];
+                            // Convertir l'objet en array si nécessaire
+                            const newArray = [];
+                            Object.keys(current).forEach(key => {
+                                const numKey = parseInt(key);
+                                if (!isNaN(numKey)) {
+                                    newArray[numKey] = current[key];
+                                }
+                            });
+                            Object.assign(current, newArray);
                         }
                         if (!(index in current)) {
                             current[index] = {};
@@ -757,7 +765,15 @@
                 const index = parseInt(lastPart);
                 if (!isNaN(index)) {
                     if (!Array.isArray(target)) {
-                        target = [];
+                        // Convertir l'objet en array si nécessaire
+                        const newArray = [];
+                        Object.keys(target).forEach(key => {
+                            const numKey = parseInt(key);
+                            if (!isNaN(numKey)) {
+                                newArray[numKey] = target[key];
+                            }
+                        });
+                        Object.assign(target, newArray);
                     }
                     target[index] = value;
                 } else {
