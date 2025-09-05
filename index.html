@@ -146,29 +146,91 @@
             font-size: 1.2rem;
         }
 
-        .filter-item {
-            display: flex;
-            align-items: center;
-            margin-bottom: 10px;
-            padding: 8px;
-            border-radius: 5px;
-            transition: background-color 0.2s ease;
+        .tree-container {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 10px;
+            background: white;
         }
 
-        .filter-item:hover {
+        .tree-node {
+            margin: 2px 0;
+            user-select: none;
+        }
+
+        .tree-item {
+            display: flex;
+            align-items: center;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: background-color 0.2s ease;
+            cursor: pointer;
+        }
+
+        .tree-item:hover {
             background-color: #f8f9fa;
         }
 
-        .filter-item input[type="checkbox"] {
-            margin-right: 10px;
-            transform: scale(1.2);
+        .tree-item.selected {
+            background-color: #e3f2fd;
         }
 
-        .filter-item label {
-            margin: 0;
+        .tree-toggle {
+            width: 16px;
+            height: 16px;
+            margin-right: 6px;
             cursor: pointer;
-            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            color: #666;
+            transition: transform 0.2s ease;
+        }
+
+        .tree-toggle.expanded {
+            transform: rotate(90deg);
+        }
+
+        .tree-toggle.leaf {
+            width: 16px;
+            margin-right: 6px;
+        }
+
+        .tree-checkbox {
+            margin-right: 8px;
+            transform: scale(1.1);
+        }
+
+        .tree-label {
             font-size: 14px;
+            color: #333;
+            flex: 1;
+        }
+
+        .tree-children {
+            margin-left: 20px;
+            border-left: 1px dashed #ddd;
+            padding-left: 10px;
+        }
+
+        .tree-children.collapsed {
+            display: none;
+        }
+
+        .tree-icon {
+            margin-right: 6px;
+            font-size: 12px;
+        }
+
+        .tree-icon.folder {
+            color: #ffa726;
+        }
+
+        .tree-icon.file {
+            color: #42a5f5;
         }
 
         .refresh-controls {
@@ -446,7 +508,7 @@
             statusDiv.innerHTML = `<div class="status ${type}">${message}</div>`;
         }
 
-        // Fonction pour générer les filtres basés sur les données
+        // Fonction pour générer l'arborescence des filtres
         function generateFilters(data) {
             const filtersSection = document.getElementById('filtersSection');
             const filtersList = document.getElementById('filtersList');
@@ -456,20 +518,133 @@
                 return;
             }
 
-            const fields = extractFields(data);
             filtersList.innerHTML = '';
-
-            fields.forEach(field => {
-                const filterItem = document.createElement('div');
-                filterItem.className = 'filter-item';
-                filterItem.innerHTML = `
-                    <input type="checkbox" id="filter_${field}" value="${field}" onchange="applyFilters()">
-                    <label for="filter_${field}">${field}</label>
-                `;
-                filtersList.appendChild(filterItem);
-            });
-
+            
+            // Créer le conteneur de l'arbre
+            const treeContainer = document.createElement('div');
+            treeContainer.className = 'tree-container';
+            
+            // Construire l'arborescence
+            const treeStructure = buildTreeStructure(data);
+            const treeElement = createTreeElement(treeStructure, '');
+            
+            treeContainer.appendChild(treeElement);
+            filtersList.appendChild(treeContainer);
             filtersSection.style.display = 'block';
+        }
+
+        // Fonction pour construire la structure d'arbre
+        function buildTreeStructure(obj, path = '') {
+            const result = {};
+            
+            if (Array.isArray(obj)) {
+                obj.forEach((item, index) => {
+                    const itemPath = `${path}[${index}]`;
+                    if (typeof item === 'object' && item !== null) {
+                        result[`[${index}]`] = buildTreeStructure(item, itemPath);
+                    } else {
+                        result[`[${index}]`] = { _value: item, _path: itemPath };
+                    }
+                });
+            } else if (typeof obj === 'object' && obj !== null) {
+                Object.keys(obj).forEach(key => {
+                    const keyPath = path ? `${path}.${key}` : key;
+                    if (typeof obj[key] === 'object' && obj[key] !== null) {
+                        result[key] = buildTreeStructure(obj[key], keyPath);
+                    } else {
+                        result[key] = { _value: obj[key], _path: keyPath };
+                    }
+                });
+            } else {
+                return { _value: obj, _path: path };
+            }
+            
+            return result;
+        }
+
+        // Fonction pour créer l'élément d'arbre
+        function createTreeElement(node, key, level = 0) {
+            const container = document.createElement('div');
+            container.className = 'tree-node';
+            
+            if (node._value !== undefined) {
+                // C'est une feuille (valeur)
+                const item = document.createElement('div');
+                item.className = 'tree-item';
+                item.innerHTML = `
+                    <div class="tree-toggle leaf"></div>
+                    <input type="checkbox" class="tree-checkbox" value="${node._path}" onchange="applyFilters()">
+                    <span class="tree-icon file">📄</span>
+                    <span class="tree-label">${key}: ${typeof node._value === 'string' ? `"${node._value}"` : node._value}</span>
+                `;
+                container.appendChild(item);
+            } else {
+                // C'est un nœud (objet/array)
+                const hasChildren = Object.keys(node).length > 0;
+                const item = document.createElement('div');
+                item.className = 'tree-item';
+                
+                const toggleIcon = hasChildren ? '▶' : '';
+                const folderIcon = Array.isArray(node) ? '📁' : '📂';
+                
+                item.innerHTML = `
+                    <div class="tree-toggle ${hasChildren ? '' : 'leaf'}" onclick="toggleTreeNode(this)">
+                        ${toggleIcon}
+                    </div>
+                    <input type="checkbox" class="tree-checkbox" value="${key}" onchange="toggleNodeSelection(this)">
+                    <span class="tree-icon folder">${folderIcon}</span>
+                    <span class="tree-label">${key}</span>
+                `;
+                
+                container.appendChild(item);
+                
+                if (hasChildren) {
+                    const children = document.createElement('div');
+                    children.className = 'tree-children collapsed';
+                    
+                    Object.keys(node).forEach(childKey => {
+                        const childElement = createTreeElement(node[childKey], childKey, level + 1);
+                        children.appendChild(childElement);
+                    });
+                    
+                    container.appendChild(children);
+                }
+            }
+            
+            return container;
+        }
+
+        // Fonction pour basculer l'état d'un nœud d'arbre
+        function toggleTreeNode(toggleElement) {
+            const treeItem = toggleElement.closest('.tree-item');
+            const treeNode = treeItem.closest('.tree-node');
+            const children = treeNode.querySelector('.tree-children');
+            
+            if (children) {
+                const isCollapsed = children.classList.contains('collapsed');
+                if (isCollapsed) {
+                    children.classList.remove('collapsed');
+                    toggleElement.classList.add('expanded');
+                } else {
+                    children.classList.add('collapsed');
+                    toggleElement.classList.remove('expanded');
+                }
+            }
+        }
+
+        // Fonction pour gérer la sélection d'un nœud
+        function toggleNodeSelection(checkbox) {
+            const treeNode = checkbox.closest('.tree-node');
+            const children = treeNode.querySelector('.tree-children');
+            
+            if (children) {
+                const childCheckboxes = children.querySelectorAll('.tree-checkbox');
+                childCheckboxes.forEach(childCheckbox => {
+                    childCheckbox.checked = checkbox.checked;
+                });
+            }
+            
+            applyFilters();
         }
 
         // Fonction pour extraire tous les champs d'un objet JSON
@@ -500,8 +675,9 @@
         function applyFilters() {
             if (!currentData) return;
 
-            const selectedFilters = Array.from(document.querySelectorAll('#filtersList input[type="checkbox"]:checked'))
-                .map(checkbox => checkbox.value);
+            const selectedFilters = Array.from(document.querySelectorAll('.tree-checkbox:checked'))
+                .map(checkbox => checkbox.value)
+                .filter(value => value && value !== ''); // Filtrer les valeurs vides
 
             if (selectedFilters.length === 0) {
                 filteredData = currentData;
@@ -622,14 +798,14 @@
 
         // Fonction pour sélectionner tous les filtres
         function selectAllFilters() {
-            const checkboxes = document.querySelectorAll('#filtersList input[type="checkbox"]');
+            const checkboxes = document.querySelectorAll('.tree-checkbox');
             checkboxes.forEach(checkbox => checkbox.checked = true);
             applyFilters();
         }
 
         // Fonction pour désélectionner tous les filtres
         function deselectAllFilters() {
-            const checkboxes = document.querySelectorAll('#filtersList input[type="checkbox"]');
+            const checkboxes = document.querySelectorAll('.tree-checkbox');
             checkboxes.forEach(checkbox => checkbox.checked = false);
             applyFilters();
         }
