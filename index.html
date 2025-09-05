@@ -146,11 +146,19 @@ curl -s -G "https://data.bordeaux-metropole.fr/geojson/features/pc_captv_p" \
 
     // --- Fetch des données JSON ---
     async function fetchData() {
-      const url = buildUrl();
+      let url = buildUrl();
       if (!url) {
         alert('Veuillez saisir une URL complète ou tous les paramètres.');
         return;
       }
+      // Ajout proxy CORS si nécessaire
+      try {
+        const pageOrigin = window.location.origin;
+        const urlObj = new URL(url);
+        if (urlObj.origin !== pageOrigin) {
+          url = 'https://corsproxy.io/?' + url;
+        }
+      } catch (e) {}
       document.getElementById('fetchBtn').disabled = true;
       try {
         const res = await fetch(url);
