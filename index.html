@@ -705,21 +705,11 @@
                     // Extraire seulement les valeurs en format texte simple
                     const values = extractValuesOnly(filteredData);
                     
-                    // Retourner les valeurs en format texte simple
-                    document.body.innerHTML = `
-                        <div style="padding: 20px; font-family: monospace; background: #f5f5f5; min-height: 100vh;">
-                            <h2>DataBridge - Valeurs filtrées pour ESP32</h2>
-                            <pre style="background: #2d3748; color: #e2e8f0; padding: 20px; border-radius: 8px; overflow-x: auto; white-space: pre-wrap;">${values}</pre>
-                        </div>
-                    `;
+                    // Retourner seulement le texte brut des valeurs
+                    document.body.innerHTML = values;
                     
                 } catch (error) {
-                    document.body.innerHTML = `
-                        <div style="padding: 20px; font-family: monospace; background: #f5f5f5; min-height: 100vh;">
-                            <h2>DataBridge - Erreur</h2>
-                            <p style="color: red;">Erreur lors de la récupération des données: ${error.message}</p>
-                        </div>
-                    `;
+                    document.body.innerHTML = `Erreur: ${error.message}`;
                 }
                 return true; // Mode proxy activé
             }
