@@ -375,7 +375,7 @@
                     <div id="esp32Url" class="esp32-url"></div>
                     <button class="copy-btn" onclick="copyEsp32Url()">Copier l'URL</button>
                     <p style="margin-top: 10px; font-size: 14px; color: #666;">
-                        Cette URL retourne directement les données filtrées en JSON. L'ESP32 peut faire une requête GET sur cette URL pour récupérer uniquement les champs sélectionnés.
+                        Cette URL retourne directement les valeurs filtrées en format texte simple (une valeur par ligne). L'ESP32 peut faire une requête GET sur cette URL pour récupérer uniquement les valeurs des champs sélectionnés.
                     </p>
                 </div>
             </div>
@@ -550,6 +550,34 @@
             target[lastKey] = value;
         }
 
+        // Fonction pour extraire seulement les valeurs en format texte simple
+        function extractValuesOnly(obj) {
+            const values = [];
+            
+            function traverse(current, path = '') {
+                if (Array.isArray(current)) {
+                    current.forEach((item, index) => {
+                        if (typeof item === 'object' && item !== null) {
+                            traverse(item, `${path}[${index}]`);
+                        } else {
+                            values.push(item);
+                        }
+                    });
+                } else if (typeof current === 'object' && current !== null) {
+                    Object.keys(current).forEach(key => {
+                        const fullPath = path ? `${path}.${key}` : key;
+                        traverse(current[key], fullPath);
+                    });
+                } else {
+                    // C'est une valeur primitive, l'ajouter
+                    values.push(current);
+                }
+            }
+            
+            traverse(obj);
+            return values.join('\n');
+        }
+
         // Fonction pour afficher les résultats
         function displayResults(data) {
             const jsonDisplay = document.getElementById('jsonDisplay');
@@ -674,11 +702,14 @@
                     // Filtrer les données selon les filtres demandés
                     const filteredData = filterObjectByFields(data, filterList);
                     
-                    // Retourner les données filtrées en JSON
+                    // Extraire seulement les valeurs en format texte simple
+                    const values = extractValuesOnly(filteredData);
+                    
+                    // Retourner les valeurs en format texte simple
                     document.body.innerHTML = `
                         <div style="padding: 20px; font-family: monospace; background: #f5f5f5; min-height: 100vh;">
-                            <h2>DataBridge - Données filtrées pour ESP32</h2>
-                            <pre style="background: #2d3748; color: #e2e8f0; padding: 20px; border-radius: 8px; overflow-x: auto;">${JSON.stringify(filteredData, null, 2)}</pre>
+                            <h2>DataBridge - Valeurs filtrées pour ESP32</h2>
+                            <pre style="background: #2d3748; color: #e2e8f0; padding: 20px; border-radius: 8px; overflow-x: auto; white-space: pre-wrap;">${values}</pre>
                         </div>
                     `;
                     
