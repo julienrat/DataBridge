@@ -173,6 +173,14 @@
             border: 1px solid #ddd;
             border-radius: 4px;
             font-size: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .mapping-controls input:disabled {
+            background-color: #f8f9fa;
+            color: #6c757d;
+            cursor: not-allowed;
+            opacity: 0.6;
         }
 
         .mapping-controls label {
@@ -486,9 +494,17 @@
                         Configurez le mappage des valeurs numériques pour adapter les données à vos besoins
                     </p>
                     <div id="mappingList"></div>
-                    <button class="btn btn-secondary" onclick="addMapping()" style="margin-top: 10px;">
-                        ➕ Ajouter un mappage
-                    </button>
+                    <div style="display: flex; gap: 10px; margin-top: 10px;">
+                        <button class="btn btn-secondary" onclick="addMapping()">
+                            ➕ Ajouter un mappage
+                        </button>
+                        <button class="btn btn-secondary" onclick="toggleAllMappings(true)">
+                            ✅ Tout activer
+                        </button>
+                        <button class="btn btn-secondary" onclick="toggleAllMappings(false)">
+                            ❌ Tout désactiver
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -684,23 +700,26 @@
             
             mappingItem.innerHTML = `
                 <button class="mapping-remove" onclick="removeMapping('${mappingId}')">×</button>
-                <h4>${fieldPath}</h4>
-                <div class="mapping-controls">
+                <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                    <input type="checkbox" id="${mappingId}_enabled" checked onchange="toggleMapping('${mappingId}')" style="margin-right: 8px; transform: scale(1.2);">
+                    <h4 style="margin: 0; flex: 1;">${fieldPath}</h4>
+                </div>
+                <div class="mapping-controls" id="${mappingId}_controls">
                     <div>
                         <label>Seuil bas (entrée)</label>
-                        <input type="number" id="${mappingId}_inputLow" value="${Math.floor(defaultValue - 10)}" step="0.1">
+                        <input type="number" id="${mappingId}_inputLow" value="${Math.floor(defaultValue - 10)}" step="0.1" onchange="updateMappingPreview('${mappingId}', '${fieldPath}')">
                     </div>
                     <div>
                         <label>Seuil haut (entrée)</label>
-                        <input type="number" id="${mappingId}_inputHigh" value="${Math.floor(defaultValue + 10)}" step="0.1">
+                        <input type="number" id="${mappingId}_inputHigh" value="${Math.floor(defaultValue + 10)}" step="0.1" onchange="updateMappingPreview('${mappingId}', '${fieldPath}')">
                     </div>
                     <div>
                         <label>Seuil bas (sortie)</label>
-                        <input type="number" id="${mappingId}_outputLow" value="0" step="1">
+                        <input type="number" id="${mappingId}_outputLow" value="0" step="1" onchange="updateMappingPreview('${mappingId}', '${fieldPath}')">
                     </div>
                     <div>
                         <label>Seuil haut (sortie)</label>
-                        <input type="number" id="${mappingId}_outputHigh" value="100" step="1">
+                        <input type="number" id="${mappingId}_outputHigh" value="100" step="1" onchange="updateMappingPreview('${mappingId}', '${fieldPath}')">
                     </div>
                 </div>
                 <div style="font-size: 11px; color: #666; margin-top: 5px;">
@@ -720,6 +739,7 @@
             dataMappings.push({
                 id: mappingId,
                 field: fieldPath,
+                enabled: true,
                 inputLow: Math.floor(defaultValue - 10),
                 inputHigh: Math.floor(defaultValue + 10),
                 outputLow: 0,
@@ -741,6 +761,46 @@
                     alert('Ce champ n\'existe pas ou n\'est pas numérique dans les données actuelles.');
                 }
             }
+        }
+
+        // Fonction pour activer/désactiver un mappage
+        function toggleMapping(mappingId) {
+            const checkbox = document.getElementById(`${mappingId}_enabled`);
+            const controls = document.getElementById(`${mappingId}_controls`);
+            const mapping = dataMappings.find(m => m.id === mappingId);
+            
+            if (mapping) {
+                mapping.enabled = checkbox.checked;
+                
+                // Désactiver/activer visuellement les contrôles
+                const inputs = controls.querySelectorAll('input');
+                inputs.forEach(input => {
+                    input.disabled = !checkbox.checked;
+                });
+                
+                applyFilters(); // Recalculer avec le nouveau état
+            }
+        }
+
+        // Fonction pour activer/désactiver tous les mappages
+        function toggleAllMappings(enabled) {
+            dataMappings.forEach(mapping => {
+                const checkbox = document.getElementById(`${mapping.id}_enabled`);
+                const controls = document.getElementById(`${mapping.id}_controls`);
+                
+                if (checkbox && controls) {
+                    checkbox.checked = enabled;
+                    mapping.enabled = enabled;
+                    
+                    // Désactiver/activer visuellement les contrôles
+                    const inputs = controls.querySelectorAll('input');
+                    inputs.forEach(input => {
+                        input.disabled = !enabled;
+                    });
+                }
+            });
+            
+            applyFilters(); // Recalculer avec les nouveaux états
         }
 
         // Fonction pour supprimer un mappage
@@ -1072,14 +1132,14 @@
                 return value;
             }
             
-            // Chercher un mappage pour ce chemin
-            const mapping = dataMappings.find(m => m.field === path);
+            // Chercher un mappage activé pour ce chemin
+            const mapping = dataMappings.find(m => m.field === path && m.enabled);
             if (mapping) {
                 const mappedValue = mapValue(value, mapping.inputLow, mapping.inputHigh, mapping.outputLow, mapping.outputHigh);
                 return Math.round(mappedValue); // Retourner un entier
             }
             
-            return value; // Pas de mappage, retourner la valeur originale
+            return value; // Pas de mappage activé, retourner la valeur originale
         }
 
         // Fonction pour afficher les résultats
@@ -1096,6 +1156,7 @@
                 filters: filters,
                 mappings: dataMappings.map(m => ({
                     field: m.field,
+                    enabled: m.enabled,
                     inputLow: m.inputLow,
                     inputHigh: m.inputHigh,
                     outputLow: m.outputLow,
