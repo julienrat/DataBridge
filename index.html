@@ -614,10 +614,17 @@
             const mappingSection = document.getElementById('mappingSection');
             const mappingList = document.getElementById('mappingList');
             
-            // Trouver tous les champs numériques
-            const numericFields = findNumericFields(data);
+            // Trouver les champs numériques sélectionnés
+            const selectedFilters = Array.from(document.querySelectorAll('.tree-checkbox:checked'))
+                .map(checkbox => checkbox.value)
+                .filter(value => value && value !== '');
             
-            if (numericFields.length === 0) {
+            const numericSelectedFields = selectedFilters.filter(field => {
+                const value = getNestedValue(data, field);
+                return typeof value === 'number';
+            });
+            
+            if (numericSelectedFields.length === 0) {
                 mappingSection.style.display = 'none';
                 return;
             }
@@ -625,8 +632,8 @@
             mappingList.innerHTML = '';
             dataMappings = []; // Réinitialiser les mappages
             
-            // Créer un mappage par défaut pour chaque champ numérique
-            numericFields.forEach(field => {
+            // Créer un mappage par défaut pour chaque champ numérique sélectionné
+            numericSelectedFields.forEach(field => {
                 addMappingItem(field);
             });
             
@@ -724,8 +731,15 @@
         function addMapping() {
             const fieldPath = prompt('Entrez le chemin du champ à mapper (ex: temperature, weather.temp):');
             if (fieldPath && fieldPath.trim()) {
-                addMappingItem(fieldPath.trim());
-                applyFilters(); // Recalculer avec le nouveau mappage
+                const trimmedPath = fieldPath.trim();
+                const value = getNestedValue(currentData, trimmedPath);
+                
+                if (typeof value === 'number') {
+                    addMappingItem(trimmedPath);
+                    applyFilters(); // Recalculer avec le nouveau mappage
+                } else {
+                    alert('Ce champ n\'existe pas ou n\'est pas numérique dans les données actuelles.');
+                }
             }
         }
 
@@ -921,6 +935,9 @@
             } else {
                 filteredData = filterObjectByFields(currentData, selectedFilters);
             }
+
+            // Mettre à jour la section de mappage avec les nouveaux filtres sélectionnés
+            generateMappingSection(currentData);
 
             displayResults(filteredData);
             generateEsp32Url(selectedFilters);
@@ -1156,9 +1173,11 @@
         function clearData() {
             currentData = null;
             filteredData = null;
+            dataMappings = []; // Réinitialiser les mappages
             document.getElementById('apiUrl').value = '';
             document.getElementById('jsonDisplay').textContent = 'Aucune donnée chargée. Veuillez saisir une URL d\'API et cliquer sur "Récupérer les données".';
             document.getElementById('filtersSection').style.display = 'none';
+            document.getElementById('mappingSection').style.display = 'none';
             document.getElementById('esp32Section').style.display = 'none';
             document.getElementById('status').innerHTML = '';
         }
