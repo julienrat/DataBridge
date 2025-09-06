@@ -877,6 +877,55 @@
             document.getElementById('status').innerHTML = '';
         }
 
+        // Fonction pour rafraîchir les données en préservant les filtres
+        async function refreshDataWithFilters() {
+            const url = document.getElementById('apiUrl').value.trim();
+            if (!url) {
+                showStatus('Aucune URL configurée pour le rafraîchissement', 'error');
+                return;
+            }
+
+            // Sauvegarder les filtres actuellement sélectionnés
+            const selectedFilters = Array.from(document.querySelectorAll('.tree-checkbox:checked'))
+                .map(checkbox => checkbox.value)
+                .filter(value => value && value !== '');
+
+            try {
+                // Récupérer les nouvelles données
+                const proxyUrl = CORS_PROXY + encodeURIComponent(url);
+                const response = await fetch(proxyUrl);
+                
+                if (!response.ok) {
+                    throw new Error(`Erreur HTTP: ${response.status}`);
+                }
+
+                const data = await response.json();
+                currentData = data;
+                
+                // Régénérer les filtres avec les nouvelles données
+                generateFilters(data);
+                
+                // Restaurer la sélection des filtres
+                if (selectedFilters.length > 0) {
+                    selectedFilters.forEach(filterPath => {
+                        const checkbox = document.querySelector(`.tree-checkbox[value="${filterPath}"]`);
+                        if (checkbox) {
+                            checkbox.checked = true;
+                        }
+                    });
+                }
+                
+                // Appliquer les filtres avec les nouvelles données
+                applyFilters();
+                
+                showStatus('Données rafraîchies avec succès !', 'success');
+                
+            } catch (error) {
+                console.error('Erreur lors du rafraîchissement:', error);
+                showStatus(`Erreur de rafraîchissement: ${error.message}`, 'error');
+            }
+        }
+
         // Fonction pour basculer le rafraîchissement automatique
         function toggleAutoRefresh() {
             const interval = parseInt(document.getElementById('refreshInterval').value);
@@ -894,7 +943,7 @@
                     return;
                 }
                 
-                autoRefreshInterval = setInterval(fetchData, interval * 1000);
+                autoRefreshInterval = setInterval(refreshDataWithFilters, interval * 1000);
                 isAutoRefreshActive = true;
                 button.textContent = 'Arrêter';
                 button.className = 'btn btn-secondary';
