@@ -1,0 +1,12 @@
+# Clés SSH
+github
+github.pub
+*.pem
+*.key
+
+# Fichiers système
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
