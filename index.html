@@ -501,12 +501,6 @@
                         <button class="btn btn-secondary" onclick="addMapping()">
                             ➕ Ajouter un mappage
                         </button>
-                        <button class="btn btn-secondary" onclick="toggleAllMappings(true)">
-                            ✅ Tout activer
-                        </button>
-                        <button class="btn btn-secondary" onclick="toggleAllMappings(false)">
-                            ❌ Tout désactiver
-                        </button>
                     </div>
                 </div>
             </div>
@@ -704,10 +698,7 @@
             
             mappingItem.innerHTML = `
                 <button class="mapping-remove" onclick="removeMapping('${mappingId}')">×</button>
-                <div style="display: flex; align-items: center; margin-bottom: 10px;">
-                    <input type="checkbox" id="${mappingId}_enabled" checked onchange="toggleMapping('${mappingId}')" style="margin-right: 8px; transform: scale(1.2);">
-                    <h4 style="margin: 0; flex: 1;">${fieldPath}</h4>
-                </div>
+                <h4 style="margin: 0 0 10px 0;">${fieldPath}</h4>
                 <div class="mapping-controls" id="${mappingId}_controls">
                     <div>
                         <label>Seuil bas (entrée)</label>
@@ -743,7 +734,6 @@
             dataMappings.push({
                 id: mappingId,
                 field: fieldPath,
-                enabled: true,
                 inputLow: Math.floor(defaultValue - 10),
                 inputHigh: Math.floor(defaultValue + 10),
                 outputLow: 0,
@@ -767,45 +757,6 @@
             }
         }
 
-        // Fonction pour activer/désactiver un mappage
-        function toggleMapping(mappingId) {
-            const checkbox = document.getElementById(`${mappingId}_enabled`);
-            const controls = document.getElementById(`${mappingId}_controls`);
-            const mapping = dataMappings.find(m => m.id === mappingId);
-            
-            if (mapping) {
-                mapping.enabled = checkbox.checked;
-                
-                // Désactiver/activer visuellement les contrôles
-                const inputs = controls.querySelectorAll('input');
-                inputs.forEach(input => {
-                    input.disabled = !checkbox.checked;
-                });
-                
-                applyFilters(); // Recalculer avec le nouveau état
-            }
-        }
-
-        // Fonction pour activer/désactiver tous les mappages
-        function toggleAllMappings(enabled) {
-            dataMappings.forEach(mapping => {
-                const checkbox = document.getElementById(`${mapping.id}_enabled`);
-                const controls = document.getElementById(`${mapping.id}_controls`);
-                
-                if (checkbox && controls) {
-                    checkbox.checked = enabled;
-                    mapping.enabled = enabled;
-                    
-                    // Désactiver/activer visuellement les contrôles
-                    const inputs = controls.querySelectorAll('input');
-                    inputs.forEach(input => {
-                        input.disabled = !enabled;
-                    });
-                }
-            });
-            
-            applyFilters(); // Recalculer avec les nouveaux états
-        }
 
         // Fonction pour supprimer un mappage
         function removeMapping(mappingId) {
@@ -1137,17 +1088,13 @@
             
             // Mettre à jour visuellement tous les mappages
             dataMappings.forEach(mapping => {
-                const mappingCheckbox = document.getElementById(`${mapping.id}_enabled`);
                 const controls = document.getElementById(`${mapping.id}_controls`);
                 
-                if (mappingCheckbox && controls) {
-                    // Désactiver/activer la case à cocher du mappage
-                    mappingCheckbox.disabled = !mappingSystemEnabled;
-                    
+                if (controls) {
                     // Désactiver/activer les contrôles
                     const inputs = controls.querySelectorAll('input');
                     inputs.forEach(input => {
-                        input.disabled = !mappingSystemEnabled || !mappingCheckbox.checked;
+                        input.disabled = !mappingSystemEnabled;
                     });
                 }
             });
@@ -1161,14 +1108,14 @@
                 return value;
             }
             
-            // Chercher un mappage activé pour ce chemin
-            const mapping = dataMappings.find(m => m.field === path && m.enabled);
+            // Chercher un mappage pour ce chemin
+            const mapping = dataMappings.find(m => m.field === path);
             if (mapping) {
                 const mappedValue = mapValue(value, mapping.inputLow, mapping.inputHigh, mapping.outputLow, mapping.outputHigh);
                 return Math.round(mappedValue); // Retourner un entier
             }
             
-            return value; // Pas de mappage activé, retourner la valeur originale
+            return value; // Pas de mappage, retourner la valeur originale
         }
 
         // Fonction pour afficher les résultats
@@ -1186,7 +1133,6 @@
                 mappingEnabled: mappingSystemEnabled,
                 mappings: dataMappings.map(m => ({
                     field: m.field,
-                    enabled: m.enabled,
                     inputLow: m.inputLow,
                     inputHigh: m.inputHigh,
                     outputLow: m.outputLow,
