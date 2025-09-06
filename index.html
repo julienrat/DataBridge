@@ -410,6 +410,9 @@
                     <button class="btn btn-success" onclick="toggleAutoRefresh()" id="autoRefreshBtn">
                         Démarrer
                     </button>
+                    <div id="refreshStatus" style="display: none; margin-top: 10px; padding: 8px; background: #e8f5e8; border: 1px solid #28a745; border-radius: 5px; font-size: 12px; color: #155724;">
+                        🔄 Rafraîchissement actif - Prochaine mise à jour dans <span id="countdown">30</span>s
+                    </div>
                 </div>
 
                 <div class="filters-section" id="filtersSection" style="display: none;">
@@ -452,6 +455,7 @@
         let filteredData = null;
         let autoRefreshInterval = null;
         let isAutoRefreshActive = false;
+        let countdownInterval = null;
 
         // Proxy CORS pour contourner les restrictions
         const CORS_PROXY = 'https://api.allorigins.win/raw?url=';
@@ -929,28 +933,76 @@
             }
         }
 
+        // Fonction pour démarrer le compte à rebours
+        function startCountdown(seconds) {
+            const countdownElement = document.getElementById('countdown');
+            const refreshStatus = document.getElementById('refreshStatus');
+            
+            let remaining = seconds;
+            countdownElement.textContent = remaining;
+            refreshStatus.style.display = 'block';
+            
+            countdownInterval = setInterval(() => {
+                remaining--;
+                countdownElement.textContent = remaining;
+                
+                if (remaining <= 0) {
+                    clearInterval(countdownInterval);
+                    // Le rafraîchissement va se déclencher automatiquement
+                }
+            }, 1000);
+        }
+
+        // Fonction pour arrêter le compte à rebours
+        function stopCountdown() {
+            if (countdownInterval) {
+                clearInterval(countdownInterval);
+                countdownInterval = null;
+            }
+            document.getElementById('refreshStatus').style.display = 'none';
+        }
+
         // Fonction pour basculer le rafraîchissement automatique
         function toggleAutoRefresh() {
             const interval = parseInt(document.getElementById('refreshInterval').value);
             const button = document.getElementById('autoRefreshBtn');
 
             if (isAutoRefreshActive) {
+                // Arrêter le rafraîchissement
                 clearInterval(autoRefreshInterval);
+                stopCountdown();
                 isAutoRefreshActive = false;
                 button.textContent = 'Démarrer';
                 button.className = 'btn btn-success';
                 showStatus('Rafraîchissement automatique arrêté', 'success');
             } else {
+                // Vérifier l'intervalle
                 if (interval < 5 || interval > 300) {
                     showStatus('L\'intervalle doit être entre 5 et 300 secondes', 'error');
                     return;
                 }
                 
-                autoRefreshInterval = setInterval(refreshDataWithFilters, interval * 1000);
+                // Vérifier qu'il y a une URL configurée
+                const url = document.getElementById('apiUrl').value.trim();
+                if (!url) {
+                    showStatus('Veuillez d\'abord saisir une URL d\'API', 'error');
+                    return;
+                }
+                
+                // Démarrer le rafraîchissement en boucle
+                autoRefreshInterval = setInterval(() => {
+                    refreshDataWithFilters();
+                    startCountdown(interval);
+                }, interval * 1000);
+                
                 isAutoRefreshActive = true;
                 button.textContent = 'Arrêter';
                 button.className = 'btn btn-secondary';
-                showStatus(`Rafraîchissement automatique activé (${interval}s)`, 'success');
+                showStatus(`🔄 Rafraîchissement automatique activé (${interval}s)`, 'success');
+                
+                // Faire un premier rafraîchissement immédiat et démarrer le compte à rebours
+                refreshDataWithFilters();
+                startCountdown(interval);
             }
         }
 
