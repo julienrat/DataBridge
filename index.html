@@ -489,7 +489,10 @@
                 </div>
 
                 <div class="mapping-section" id="mappingSection" style="display: none;">
-                    <h3>🎯 Mappage de données :</h3>
+                    <div style="display: flex; align-items: center; margin-bottom: 15px;">
+                        <input type="checkbox" id="mappingEnabled" checked onchange="toggleMappingSystem()" style="margin-right: 10px; transform: scale(1.3);">
+                        <h3 style="margin: 0; flex: 1;">🎯 Mappage de données :</h3>
+                    </div>
                     <p style="font-size: 12px; color: #666; margin-bottom: 15px;">
                         Configurez le mappage des valeurs numériques pour adapter les données à vos besoins
                     </p>
@@ -538,6 +541,7 @@
         let isAutoRefreshActive = false;
         let countdownInterval = null;
         let dataMappings = []; // Stockage des mappages de données
+        let mappingSystemEnabled = true; // État global du système de mappage
 
         // Proxy CORS pour contourner les restrictions
         const CORS_PROXY = 'https://api.allorigins.win/raw?url=';
@@ -1126,9 +1130,34 @@
             return values.join('\n');
         }
 
+        // Fonction pour activer/désactiver le système de mappage
+        function toggleMappingSystem() {
+            const checkbox = document.getElementById('mappingEnabled');
+            mappingSystemEnabled = checkbox.checked;
+            
+            // Mettre à jour visuellement tous les mappages
+            dataMappings.forEach(mapping => {
+                const mappingCheckbox = document.getElementById(`${mapping.id}_enabled`);
+                const controls = document.getElementById(`${mapping.id}_controls`);
+                
+                if (mappingCheckbox && controls) {
+                    // Désactiver/activer la case à cocher du mappage
+                    mappingCheckbox.disabled = !mappingSystemEnabled;
+                    
+                    // Désactiver/activer les contrôles
+                    const inputs = controls.querySelectorAll('input');
+                    inputs.forEach(input => {
+                        input.disabled = !mappingSystemEnabled || !mappingCheckbox.checked;
+                    });
+                }
+            });
+            
+            applyFilters(); // Recalculer avec le nouvel état
+        }
+
         // Fonction pour appliquer le mappage à une valeur
         function applyMapping(value, path) {
-            if (typeof value !== 'number') {
+            if (typeof value !== 'number' || !mappingSystemEnabled) {
                 return value;
             }
             
@@ -1154,6 +1183,7 @@
             const data = {
                 url: apiUrl,
                 filters: filters,
+                mappingEnabled: mappingSystemEnabled,
                 mappings: dataMappings.map(m => ({
                     field: m.field,
                     enabled: m.enabled,
@@ -1235,6 +1265,7 @@
             currentData = null;
             filteredData = null;
             dataMappings = []; // Réinitialiser les mappages
+            mappingSystemEnabled = true; // Réinitialiser l'état du mappage
             document.getElementById('apiUrl').value = '';
             document.getElementById('jsonDisplay').textContent = 'Aucune donnée chargée. Veuillez saisir une URL d\'API et cliquer sur "Récupérer les données".';
             document.getElementById('filtersSection').style.display = 'none';
@@ -1392,6 +1423,7 @@
                     const originalUrl = config.url;
                     const filterList = config.filters;
                     const mappings = config.mappings || [];
+                    const mappingEnabled = config.mappingEnabled !== undefined ? config.mappingEnabled : true;
                     
                     // Récupérer les données depuis l'API originale
                     const proxyRequestUrl = CORS_PROXY + encodeURIComponent(originalUrl);
@@ -1408,13 +1440,16 @@
                     
                     // Appliquer les mappages temporairement
                     const originalMappings = dataMappings;
+                    const originalMappingEnabled = mappingSystemEnabled;
                     dataMappings = mappings;
+                    mappingSystemEnabled = mappingEnabled;
                     
                     // Extraire seulement les valeurs en format texte simple
                     const values = extractValuesOnly(filteredData);
                     
                     // Restaurer les mappages originaux
                     dataMappings = originalMappings;
+                    mappingSystemEnabled = originalMappingEnabled;
                     
                     // Retourner seulement le texte brut des valeurs
                     document.body.innerHTML = values;
