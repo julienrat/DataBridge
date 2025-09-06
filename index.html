@@ -443,7 +443,7 @@
                     <div id="esp32Url" class="esp32-url"></div>
                     <button class="copy-btn" onclick="copyEsp32Url()">Copier l'URL</button>
                     <p style="margin-top: 10px; font-size: 14px; color: #666;">
-                        Cette URL retourne directement les valeurs filtrées en format texte simple (une valeur par ligne). L'ESP32 peut faire une requête GET sur cette URL pour récupérer uniquement les valeurs des champs sélectionnés.
+                        <strong>URL courte générée !</strong> Cette URL retourne directement les valeurs filtrées en format texte simple (une valeur par ligne). L'ESP32 peut faire une requête GET sur cette URL pour récupérer uniquement les valeurs des champs sélectionnés. L'URL fonctionne depuis n'importe quel appareil connecté.
                     </p>
                 </div>
             </div>
@@ -823,6 +823,32 @@
             jsonDisplay.textContent = JSON.stringify(data, null, 2);
         }
 
+        // Fonction pour encoder une URL courte
+        function encodeShortUrl(apiUrl, filters) {
+            // Créer un objet avec les données
+            const data = {
+                url: apiUrl,
+                filters: filters
+            };
+            
+            // Encoder en base64 pour une URL courte
+            const encoded = btoa(JSON.stringify(data));
+            
+            // Créer l'URL courte
+            return `${window.location.origin}${window.location.pathname}?s=${encoded}`;
+        }
+
+        // Fonction pour décoder une URL courte
+        function decodeShortUrl(encodedData) {
+            try {
+                const decoded = atob(encodedData);
+                return JSON.parse(decoded);
+            } catch (error) {
+                console.error('Erreur lors du décodage de l\'URL courte:', error);
+                return null;
+            }
+        }
+
         // Fonction pour générer l'URL ESP32 avec données filtrées
         function generateEsp32Url(selectedFilters) {
             const esp32Section = document.getElementById('esp32Section');
@@ -839,12 +865,10 @@
                 return;
             }
 
-            // Créer une URL qui utilise notre proxy avec filtres
-            const filtersParam = selectedFilters.join(',');
-            const originalUrl = encodeURIComponent(baseUrl);
-            const esp32UrlValue = `${window.location.origin}${window.location.pathname}?proxy=${originalUrl}&filters=${encodeURIComponent(filtersParam)}`;
+            // Créer une URL courte
+            const shortUrl = encodeShortUrl(baseUrl, selectedFilters);
             
-            esp32Url.textContent = esp32UrlValue;
+            esp32Url.textContent = shortUrl;
             esp32Section.style.display = 'block';
         }
 
@@ -1016,9 +1040,49 @@
         // Fonction pour gérer les paramètres URL (mode proxy pour ESP32)
         async function handleProxyMode() {
             const urlParams = new URLSearchParams(window.location.search);
+            const shortParam = urlParams.get('s');
             const proxyUrl = urlParams.get('proxy');
             const filters = urlParams.get('filters');
             
+            // Mode URL courte
+            if (shortParam) {
+                try {
+                    // Décoder l'URL courte
+                    const config = decodeShortUrl(shortParam);
+                    if (!config) {
+                        document.body.innerHTML = 'Erreur: URL courte invalide';
+                        return true;
+                    }
+                    
+                    const originalUrl = config.url;
+                    const filterList = config.filters;
+                    
+                    // Récupérer les données depuis l'API originale
+                    const proxyRequestUrl = CORS_PROXY + encodeURIComponent(originalUrl);
+                    const response = await fetch(proxyRequestUrl);
+                    
+                    if (!response.ok) {
+                        throw new Error(`Erreur HTTP: ${response.status}`);
+                    }
+                    
+                    const data = await response.json();
+                    
+                    // Filtrer les données selon les filtres demandés
+                    const filteredData = filterObjectByFields(data, filterList);
+                    
+                    // Extraire seulement les valeurs en format texte simple
+                    const values = extractValuesOnly(filteredData);
+                    
+                    // Retourner seulement le texte brut des valeurs
+                    document.body.innerHTML = values;
+                    
+                } catch (error) {
+                    document.body.innerHTML = `Erreur: ${error.message}`;
+                }
+                return true; // Mode proxy activé
+            }
+            
+            // Mode URL longue (ancien système pour compatibilité)
             if (proxyUrl && filters) {
                 try {
                     // Décoder l'URL originale
