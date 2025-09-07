@@ -445,7 +445,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🌉 DataBridge <span style="font-size: 0.9rem; font-weight: 700; background: rgba(0,0,0,0.15); padding: 4px 8px; border-radius: 8px; margin-left: 8px;">v0.2.7</span></h1>
+            <h1>🌉 DataBridge <span style="font-size: 0.9rem; font-weight: 700; background: rgba(0,0,0,0.15); padding: 4px 8px; border-radius: 8px; margin-left: 8px;">v0.2.8</span></h1>
             <p>Interface pour récupérer et filtrer des données JSON depuis n'importe quelle API</p>
         </div>
 
@@ -1242,7 +1242,7 @@
             const encoded = btoa(JSON.stringify(data));
             
             // Créer l'URL courte
-            return `${window.location.origin}${window.location.pathname}?s=${encoded}`;
+            return `${window.location.origin}${window.location.pathname}?s=${encoded}&download=0`;
         }
 
         // Fonction pour décoder une URL courte
