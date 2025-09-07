@@ -444,7 +444,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🌉 DataBridge <span style="font-size: 0.9rem; font-weight: 700; background: rgba(0,0,0,0.15); padding: 4px 8px; border-radius: 8px; margin-left: 8px;">v0.2.0</span></h1>
+            <h1>🌉 DataBridge <span style="font-size: 0.9rem; font-weight: 700; background: rgba(0,0,0,0.15); padding: 4px 8px; border-radius: 8px; margin-left: 8px;">v0.2.2</span></h1>
             <p>Interface pour récupérer et filtrer des données JSON depuis n'importe quelle API</p>
         </div>
 
@@ -1131,10 +1131,10 @@
             if (mapping) {
                 mapping.enabled = checkbox.checked;
                 
-                // Désactiver/activer visuellement les contrôles
+                // Garder les contrôles toujours éditables
                 const inputs = controls.querySelectorAll('input[type="number"]');
                 inputs.forEach(input => {
-                    input.disabled = !checkbox.checked || !mappingSystemEnabled;
+                    input.disabled = false;
                 });
                 
                 applyFilters(); // Recalculer avec le nouveau état
@@ -1159,11 +1159,12 @@
                 const controls = document.getElementById(`${mapping.id}_controls`);
                 if (!mappingCheckbox || !controls) return;
 
+                // Laisser la case à cocher refléter l'état global, mais ne jamais bloquer les inputs
                 mappingCheckbox.disabled = !mappingSystemEnabled;
 
                 const inputs = controls.querySelectorAll('input[type="number"]');
                 inputs.forEach(input => {
-                    input.disabled = !mappingSystemEnabled || !mappingCheckbox.checked;
+                    input.disabled = false;
                 });
             });
         }
