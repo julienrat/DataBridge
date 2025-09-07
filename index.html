@@ -708,7 +708,7 @@
             mappingItem.innerHTML = `
                 <button class="mapping-remove" onclick="removeMapping('${mappingId}')">×</button>
                 <div style="display: flex; align-items: center; margin-bottom: 10px;">
-                    <input type="checkbox" id="${mappingId}_enabled" checked onchange="toggleMapping('${mappingId}')" style="margin-right: 8px; transform: scale(1.2);">
+                    <input type="checkbox" id="${mappingId}_enabled" onchange="toggleMapping('${mappingId}')" style="margin-right: 8px; transform: scale(1.2);">
                     <h4 style="margin: 0; flex: 1;">${fieldPath}</h4>
                 </div>
                 <div class="mapping-controls" id="${mappingId}_controls">
@@ -757,7 +757,7 @@
             dataMappings.push({
                 id: mappingId,
                 field: fieldPath,
-                enabled: true,
+                enabled: false,
                 inputLow: Math.floor(defaultValue - 10),
                 inputHigh: Math.floor(defaultValue + 10),
                 outputLow: 0,
@@ -1129,13 +1129,17 @@
             if (mapping) {
                 mapping.enabled = checkbox.checked;
                 
-                // Garder les contrôles toujours éditables
+                // Contrôles toujours éditables
                 const inputs = controls.querySelectorAll('input[type="number"]');
                 inputs.forEach(input => {
                     input.disabled = false;
                 });
-                
-                applyFilters(); // Recalculer avec le nouveau état
+
+                // Mettre à jour l'aperçu immédiat
+                updateMappingPreview(mappingId, mapping.field);
+
+                // Recalculer les résultats avec l'état activé/désactivé
+                applyFilters();
             }
         }
 
