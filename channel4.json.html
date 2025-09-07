@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-store" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Channel 4 JSON</title>
+    <script>
+        async function renderJson() {
+            try {
+                const cfgRes = await fetch('channel4.cfg', { cache: 'no-cache' });
+                if (!cfgRes.ok) throw new Error('cfg HTTP ' + cfgRes.status);
+                const url = (await cfgRes.text()).split('\n').map(l => l.trim()).find(l => l) || '';
+                if (!url) throw new Error('Aucune URL dans channel4.cfg');
+                const res = await fetch(url, { cache: 'no-cache' });
+                if (!res.ok) throw new Error('target HTTP ' + res.status);
+                const text = await res.text();
+                try { JSON.parse(text); } catch {}
+                document.body.innerText = text;
+            } catch (e) {
+                document.body.innerText = JSON.stringify({ error: e.message });
+            }
+        }
+        addEventListener('DOMContentLoaded', renderJson);
+    </script>
+</head>
+<body></body>
+</html>
+
+
