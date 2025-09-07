@@ -445,7 +445,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🌉 DataBridge <span style="font-size: 0.9rem; font-weight: 700; background: rgba(0,0,0,0.15); padding: 4px 8px; border-radius: 8px; margin-left: 8px;">v0.2.2</span></h1>
+            <h1>🌉 DataBridge <span style="font-size: 0.9rem; font-weight: 700; background: rgba(0,0,0,0.15); padding: 4px 8px; border-radius: 8px; margin-left: 8px;">v0.2.3</span></h1>
             <p>Interface pour récupérer et filtrer des données JSON depuis n'importe quelle API</p>
         </div>
 
@@ -797,7 +797,6 @@
 
         // Fonction pour mettre à jour l'aperçu du mappage
         function updateMappingPreview(mappingId, fieldPath) {
-            isAdjustingMapping = true;
             const inputLow = parseFloat(document.getElementById(`${mappingId}_inputLow`).value) || 0;
             const inputHigh = parseFloat(document.getElementById(`${mappingId}_inputHigh`).value) || 0;
             const outputLow = parseFloat(document.getElementById(`${mappingId}_outputLow`).value) || 0;
@@ -826,7 +825,6 @@
                 .filter(value => value && value !== '');
             generateEsp32Url(selectedFilters);
 
-            isAdjustingMapping = false;
         }
 
         // Fonction pour mapper une valeur
@@ -1127,6 +1125,8 @@
             const mapping = dataMappings.find(m => m.id === mappingId);
             
             if (mapping) {
+                // Ne pas régénérer la section pendant l'activation/désactivation
+                isAdjustingMapping = true;
                 mapping.enabled = checkbox.checked;
                 
                 // Contrôles toujours éditables
@@ -1140,6 +1140,7 @@
 
                 // Recalculer les résultats avec l'état activé/désactivé
                 applyFilters();
+                isAdjustingMapping = false;
             }
         }
 
