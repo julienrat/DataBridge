@@ -2,6 +2,11 @@
 
 Une interface web moderne et responsive pour récupérer, filtrer et traiter des données JSON depuis n'importe quelle API, spécialement conçue pour l'intégration avec des microcontrôleurs comme l'ESP32.
 
+## 🔗 Liens
+
+- Page GitHub Pages (démo/production): [`https://julienrat.github.io/DataBridge/`](https://julienrat.github.io/DataBridge/)
+- Dépôt GitHub: [`https://github.com/julienrat/DataBridge`](https://github.com/julienrat/DataBridge)
+
 ## ✨ Fonctionnalités
 
 - **🌐 Saisie d'URL complète** : Support de n'importe quelle API JSON
@@ -36,6 +41,36 @@ Une interface web moderne et responsive pour récupérer, filtrer et traiter des
 ### URL ESP32
 L'URL générée suit le format : `https://votre-api.com?filters=champ1,champ2,champ3`
 
+### Channels de redirection (statique)
+
+Quatre pages statiques permettent une redirection rapide via fichiers `.cfg`:
+
+- `channel1.html` lit `channel1.cfg`
+- `channel2.html` lit `channel2.cfg`
+- `channel3.html` lit `channel3.cfg`
+- `channel4.html` lit `channel4.cfg`
+
+Règles de lecture:
+- La première ligne non vide du fichier `.cfg` est utilisée comme URL de destination
+- L’URL doit être valide (ex: commencer par `http://` ou `https://`)
+- En cas d’erreur (fichier manquant, URL invalide), un message explicite s’affiche
+
+Exemple de contenu de `channel1.cfg`:
+
+```
+https://julienrat.github.io/DataBridge/index.html?s=...votre_chaine_base64...
+```
+
+Utilisation:
+1. Éditez `channelX.cfg` et placez l’URL cible sur la première ligne
+2. Ouvrez `channelX.html` (remplacez X par 1..4) dans un navigateur
+3. Vous serez automatiquement redirigé vers l’URL
+
+Remarques d’hébergement:
+- Sur GitHub Pages, les `.cfg` sont servis en statique et lisibles par `fetch`
+- Les `.cfg` doivent se trouver à la racine du dépôt (ou adapter les chemins)
+- La mise en cache est désactivée côté client (`cache: 'no-cache'`) pour prendre en compte les mises à jour
+
 ## 🌐 Déploiement GitHub Pages
 
 1. Poussez ce repository sur GitHub
@@ -43,12 +78,24 @@ L'URL générée suit le format : `https://votre-api.com?filters=champ1,champ2,c
 3. Sélectionnez la branche `main` comme source
 4. Votre interface sera accessible à `https://votre-username.github.io/DataBridge-1`
 
+### Déploiement des channels
+- Assurez-vous que `channel1.html`..`channel4.html` et `channel1.cfg`..`channel4.cfg` sont committés
+- Après publication sur Pages, testez: `https://<username>.github.io/DataBridge/channel1.html`
+- Mettez à jour les `.cfg` pour changer la destination sans redéployer le HTML
+
 ## 🛠️ Technologies utilisées
 
 - **HTML5** : Structure sémantique
 - **CSS3** : Design responsive avec Grid et Flexbox
 - **JavaScript ES6+** : Logique interactive et gestion des données
 - **Proxy CORS** : api.allorigins.win pour contourner les restrictions
+
+## ❓ Dépannage
+
+- Rien ne s’affiche dans les channels: vérifiez que le `.cfg` existe au même niveau que la page et contient une ligne non vide
+- Pas de redirection: assurez-vous que l’URL du `.cfg` est complète et valide (`http(s)://...`)
+- Problèmes CORS sur l’API: utilisez le proxy intégré (AllOrigins) déjà géré par l’app principale
+- L’ESP32 doit consommer l’URL courte générée (paramètre `s=` en base64) pour récupérer uniquement les valeurs filtrées
 
 ## 📝 Exemples d'APIs testées
 
