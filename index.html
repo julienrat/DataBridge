@@ -445,7 +445,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🌉 DataBridge <span style="font-size: 0.9rem; font-weight: 700; background: rgba(0,0,0,0.15); padding: 4px 8px; border-radius: 8px; margin-left: 8px;">v0.2.5</span></h1>
+            <h1>🌉 DataBridge <span style="font-size: 0.9rem; font-weight: 700; background: rgba(0,0,0,0.15); padding: 4px 8px; border-radius: 8px; margin-left: 8px;">v0.2.6</span></h1>
             <p>Interface pour récupérer et filtrer des données JSON depuis n'importe quelle API</p>
         </div>
 
@@ -1118,6 +1118,33 @@
             return values.join('\n');
         }
 
+        // Fonction pour extraire les valeurs sous forme de tableau (pour JSON)
+        function extractValuesArray(obj) {
+            const values = [];
+            function traverse(current, path = '') {
+                if (Array.isArray(current)) {
+                    current.forEach((item, index) => {
+                        if (typeof item === 'object' && item !== null) {
+                            traverse(item, `${path}[${index}]`);
+                        } else {
+                            const mappedValue = applyMapping(item, `${path}[${index}]`);
+                            values.push(mappedValue);
+                        }
+                    });
+                } else if (typeof current === 'object' && current !== null) {
+                    Object.keys(current).forEach(key => {
+                        const fullPath = path ? `${path}.${key}` : key;
+                        traverse(current[key], fullPath);
+                    });
+                } else {
+                    const mappedValue = applyMapping(current, path);
+                    values.push(mappedValue);
+                }
+            }
+            traverse(obj);
+            return values;
+        }
+
         // Fonction pour activer/désactiver un mappage individuel
         function toggleMapping(mappingId) {
             const checkbox = document.getElementById(`${mappingId}_enabled`);
@@ -1461,15 +1488,16 @@
                     dataMappings = mappings;
                     mappingSystemEnabled = mappingEnabled;
                     
-                    // Extraire seulement les valeurs en format texte simple
-                    const values = extractValuesOnly(filteredData);
+                    // Extraire les valeurs en tableau et retourner du JSON
+                    const valuesArr = extractValuesArray(filteredData);
+                    const payload = valuesArr.length === 1 ? { response: valuesArr[0] } : { response: valuesArr };
                     
                     // Restaurer les mappages originaux
                     dataMappings = originalMappings;
                     mappingSystemEnabled = originalMappingEnabled;
                     
-                    // Retourner seulement le texte brut des valeurs
-                    document.body.innerHTML = values;
+                    // Retourner JSON (texte) des valeurs mappées
+                    document.body.innerText = JSON.stringify(payload);
                     
                 } catch (error) {
                     document.body.innerHTML = `Erreur: ${error.message}`;
@@ -1497,11 +1525,10 @@
                     // Filtrer les données selon les filtres demandés
                     const filteredData = filterObjectByFields(data, filterList);
                     
-                    // Extraire seulement les valeurs en format texte simple
-                    const values = extractValuesOnly(filteredData);
-                    
-                    // Retourner seulement le texte brut des valeurs
-                    document.body.innerHTML = values;
+                    // Extraire les valeurs en tableau et retourner du JSON
+                    const valuesArr = extractValuesArray(filteredData);
+                    const payload = valuesArr.length === 1 ? { response: valuesArr[0] } : { response: valuesArr };
+                    document.body.innerText = JSON.stringify(payload);
                     
                 } catch (error) {
                     document.body.innerHTML = `Erreur: ${error.message}`;
