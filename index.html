@@ -444,7 +444,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🌉 DataBridge</h1>
+            <h1>🌉 DataBridge <span style="font-size: 0.9rem; font-weight: 700; background: rgba(0,0,0,0.15); padding: 4px 8px; border-radius: 8px; margin-left: 8px;">v0.2.0</span></h1>
             <p>Interface pour récupérer et filtrer des données JSON depuis n'importe quelle API</p>
         </div>
 
@@ -639,16 +639,23 @@
                 return typeof value === 'number';
             });
             
-            if (numericSelectedFields.length === 0) {
-                mappingSection.style.display = 'none';
-                return;
+            // Si aucun champ numérique sélectionné, tenter de précharger des champs numériques trouvés
+            let fieldsToMap = numericSelectedFields;
+            if (fieldsToMap.length === 0) {
+                const discoveredNumeric = findNumericFields(data);
+                if (!discoveredNumeric || discoveredNumeric.length === 0) {
+                    mappingSection.style.display = 'none';
+                    return;
+                }
+                // Limiter le nombre de mappages initiaux pour éviter la surcharge
+                fieldsToMap = discoveredNumeric.slice(0, 5);
             }
             
             mappingList.innerHTML = '';
             dataMappings = []; // Réinitialiser les mappages
             
-            // Créer un mappage par défaut pour chaque champ numérique sélectionné
-            numericSelectedFields.forEach(field => {
+            // Créer un mappage par défaut pour chaque champ numérique
+            fieldsToMap.forEach(field => {
                 addMappingItem(field);
             });
             
