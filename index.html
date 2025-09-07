@@ -153,6 +153,7 @@
             padding: 15px;
             margin-bottom: 10px;
             position: relative;
+            cursor: pointer;
         }
 
         .mapping-item h4 {
@@ -652,6 +653,8 @@
             });
             
             mappingSection.style.display = 'block';
+            // S'assurer que l'état d'activation/désactivation est bien appliqué aux contrôles
+            syncMappingControlsState();
         }
 
         // Fonction pour trouver les champs numériques
@@ -727,6 +730,17 @@
             
             mappingList.appendChild(mappingItem);
             
+            // Rendre le "carré" cliquable pour activer l'édition (focus sur le premier champ)
+            mappingItem.addEventListener('click', (event) => {
+                const target = event.target;
+                // Ne pas interférer avec les interactions natives sur inputs/boutons/labels
+                if (target.tagName === 'INPUT' || target.tagName === 'BUTTON' || target.tagName === 'LABEL') return;
+                const firstInput = document.getElementById(`${mappingId}_inputLow`);
+                if (firstInput && !firstInput.disabled) {
+                    firstInput.focus();
+                }
+            });
+
             // Ajouter les événements de mise à jour
             const inputs = mappingItem.querySelectorAll('input');
             inputs.forEach(input => {
@@ -743,6 +757,9 @@
                 outputLow: 0,
                 outputHigh: 100
             });
+
+            // Appliquer l'état d'activation courant aux contrôles nouvellement ajoutés
+            syncMappingControlsState();
         }
 
         // Fonction pour ajouter un nouveau mappage
@@ -1110,23 +1127,25 @@
             mappingSystemEnabled = checkbox.checked;
             
             // Mettre à jour visuellement tous les mappages
+            syncMappingControlsState();
+            
+            applyFilters(); // Recalculer avec le nouvel état
+        }
+
+        // Synchroniser l'état enabled/disabled de tous les contrôles de mappage
+        function syncMappingControlsState() {
             dataMappings.forEach(mapping => {
                 const mappingCheckbox = document.getElementById(`${mapping.id}_enabled`);
                 const controls = document.getElementById(`${mapping.id}_controls`);
-                
-                if (mappingCheckbox && controls) {
-                    // Désactiver/activer la case à cocher du mappage
-                    mappingCheckbox.disabled = !mappingSystemEnabled;
-                    
-                    // Désactiver/activer les contrôles
-                    const inputs = controls.querySelectorAll('input[type="number"]');
-                    inputs.forEach(input => {
-                        input.disabled = !mappingSystemEnabled || !mappingCheckbox.checked;
-                    });
-                }
+                if (!mappingCheckbox || !controls) return;
+
+                mappingCheckbox.disabled = !mappingSystemEnabled;
+
+                const inputs = controls.querySelectorAll('input[type="number"]');
+                inputs.forEach(input => {
+                    input.disabled = !mappingSystemEnabled || !mappingCheckbox.checked;
+                });
             });
-            
-            applyFilters(); // Recalculer avec le nouvel état
         }
 
         // Fonction pour appliquer le mappage à une valeur
