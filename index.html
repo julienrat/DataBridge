@@ -537,6 +537,7 @@
         let countdownInterval = null;
         let dataMappings = []; // Stockage des mappages de données
         let mappingSystemEnabled = true; // État global du système de mappage
+        let isAdjustingMapping = false; // Empêche la régénération pendant l'édition des seuils
 
         // Proxy CORS pour contourner les restrictions
         const CORS_PROXY = 'https://api.allorigins.win/raw?url=';
@@ -798,6 +799,7 @@
 
         // Fonction pour mettre à jour l'aperçu du mappage
         function updateMappingPreview(mappingId, fieldPath) {
+            isAdjustingMapping = true;
             const inputLow = parseFloat(document.getElementById(`${mappingId}_inputLow`).value) || 0;
             const inputHigh = parseFloat(document.getElementById(`${mappingId}_inputHigh`).value) || 0;
             const outputLow = parseFloat(document.getElementById(`${mappingId}_outputLow`).value) || 0;
@@ -816,8 +818,17 @@
                 mapping.outputLow = outputLow;
                 mapping.outputHigh = outputHigh;
             }
-            
-            applyFilters(); // Recalculer avec les nouveaux paramètres
+
+            // Rafraîchir l'affichage des résultats et l'URL sans régénérer la section de mappage
+            if (filteredData) {
+                displayResults(filteredData);
+            }
+            const selectedFilters = Array.from(document.querySelectorAll('.tree-checkbox:checked'))
+                .map(checkbox => checkbox.value)
+                .filter(value => value && value !== '');
+            generateEsp32Url(selectedFilters);
+
+            isAdjustingMapping = false;
         }
 
         // Fonction pour mapper une valeur
@@ -979,8 +990,10 @@
                 filteredData = filterObjectByFields(currentData, selectedFilters);
             }
 
-            // Mettre à jour la section de mappage avec les nouveaux filtres sélectionnés
-            generateMappingSection(currentData);
+            // Mettre à jour la section de mappage uniquement si on n'est pas en train d'éditer des seuils
+            if (!isAdjustingMapping) {
+                generateMappingSection(currentData);
+            }
 
             displayResults(filteredData);
             generateEsp32Url(selectedFilters);
