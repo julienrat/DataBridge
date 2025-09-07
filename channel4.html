@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Channel 4 Redirect</title>
+    <style>
+        body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Helvetica Neue', Arial, 'Noto Sans', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol'; margin: 0; padding: 40px; background: #f6f7fb; color: #222; }
+        .card { max-width: 720px; margin: 0 auto; background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.06); }
+        h1 { margin: 0 0 12px 0; font-size: 20px; }
+        .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; background: #1f2937; color: #e5e7eb; padding: 10px 12px; border-radius: 8px; overflow-x: auto; }
+        .hint { color: #6b7280; font-size: 14px; margin-top: 10px; }
+        .error { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; padding: 12px; border-radius: 8px; }
+    </style>
+    <script>
+        async function redirectFromCfg() {
+            const cfgPath = 'channel4.cfg';
+            const status = document.getElementById('status');
+            try {
+                status.textContent = 'Lecture de ' + cfgPath + ' ...';
+                const res = await fetch(cfgPath, { cache: 'no-cache' });
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                const text = (await res.text()).split('\n').map(l => l.trim()).find(l => l.length > 0) || '';
+                if (!text) throw new Error('Aucune URL trouvée dans ' + cfgPath);
+                const url = text;
+                try { new URL(url); } catch { throw new Error('URL invalide dans ' + cfgPath + ': ' + url); }
+                status.textContent = 'Redirection vers: ' + url;
+                window.location.replace(url);
+            } catch (e) {
+                document.getElementById('error').innerHTML = '<div class="error">' + e.message + '</div>';
+            }
+        }
+        window.addEventListener('DOMContentLoaded', redirectFromCfg);
+    </script>
+ </head>
+<body>
+    <div class="card">
+        <h1>Channel 4</h1>
+        <div id="status" class="hint">En attente...</div>
+        <div id="error" style="margin-top:12px"></div>
+        <div class="hint" style="margin-top:16px">Configurez l’URL dans <span class="mono">channel4.cfg</span> (première ligne non vide).</div>
+    </div>
+</body>
+</html>
+
+
