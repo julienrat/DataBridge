@@ -445,7 +445,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🌉 DataBridge <span style="font-size: 0.9rem; font-weight: 700; background: rgba(0,0,0,0.15); padding: 4px 8px; border-radius: 8px; margin-left: 8px;">v0.2.6</span></h1>
+            <h1>🌉 DataBridge <span style="font-size: 0.9rem; font-weight: 700; background: rgba(0,0,0,0.15); padding: 4px 8px; border-radius: 8px; margin-left: 8px;">v0.2.7</span></h1>
             <p>Interface pour récupérer et filtrer des données JSON depuis n'importe quelle API</p>
         </div>
 
@@ -1451,6 +1451,7 @@
         async function handleProxyMode() {
             const urlParams = new URLSearchParams(window.location.search);
             const shortParam = urlParams.get('s');
+            const wantDownload = urlParams.get('download') === '1';
             const proxyUrl = urlParams.get('proxy');
             const filters = urlParams.get('filters');
             
@@ -1496,8 +1497,20 @@
                     dataMappings = originalMappings;
                     mappingSystemEnabled = originalMappingEnabled;
                     
-                    // Retourner JSON (texte) des valeurs mappées
-                    document.body.innerText = JSON.stringify(payload);
+                    // Retourner JSON (texte) ou forcer un téléchargement
+                    const jsonText = JSON.stringify(payload);
+                    if (wantDownload) {
+                        const blob = new Blob([jsonText], { type: 'application/json' });
+                        const link = document.createElement('a');
+                        link.href = URL.createObjectURL(blob);
+                        link.download = 'response.json';
+                        document.body.appendChild(link);
+                        link.click();
+                        URL.revokeObjectURL(link.href);
+                        return true;
+                    } else {
+                        document.body.innerText = jsonText;
+                    }
                     
                 } catch (error) {
                     document.body.innerHTML = `Erreur: ${error.message}`;
@@ -1528,7 +1541,19 @@
                     // Extraire les valeurs en tableau et retourner du JSON
                     const valuesArr = extractValuesArray(filteredData);
                     const payload = valuesArr.length === 1 ? { response: valuesArr[0] } : { response: valuesArr };
-                    document.body.innerText = JSON.stringify(payload);
+                    const jsonText = JSON.stringify(payload);
+                    if (wantDownload) {
+                        const blob = new Blob([jsonText], { type: 'application/json' });
+                        const link = document.createElement('a');
+                        link.href = URL.createObjectURL(blob);
+                        link.download = 'response.json';
+                        document.body.appendChild(link);
+                        link.click();
+                        URL.revokeObjectURL(link.href);
+                        return true;
+                    } else {
+                        document.body.innerText = jsonText;
+                    }
                     
                 } catch (error) {
                     document.body.innerHTML = `Erreur: ${error.message}`;
