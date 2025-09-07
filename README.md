@@ -73,3 +73,29 @@ L'URL générée suit le format : `https://votre-api.com?filters=champ1,champ2,c
 ---
 
 *Développé pour simplifier l'intégration de données JSON dans des projets IoT et de microcontrôleurs.*
+
+## 🤖 Remerciements
+
+Ce logiciel a été réalisé avec l'aide d'une IA d'assistance au développement (pair programming), pour accélérer la conception de l'interface, la logique de mappage et l'automatisation des tâches.
+
+## 🔗 Channels de redirection (statique)
+
+Quatre pages statiques permettent de rediriger rapidement vers des URLs configurées dans des fichiers `.cfg`:
+
+- `channel1.html` lit `channel1.cfg`
+- `channel2.html` lit `channel2.cfg`
+- `channel3.html` lit `channel3.cfg`
+- `channel4.html` lit `channel4.cfg`
+
+Règles:
+- La page lit la première ligne non vide du fichier `.cfg`
+- Si l'URL est valide, la page redirige automatiquement avec `window.location.replace(...)`
+- En cas d'erreur (fichier introuvable, URL invalide), un message explicite est affiché
+
+Exemples d'usage:
+
+1. Éditez `channel1.cfg` et placez l'URL cible sur la première ligne
+2. Ouvrez `channel1.html` dans votre navigateur
+3. Vous serez redirigé vers l'URL définie
+
+Astuce: Ces redirections sont utiles pour partager des liens courts (ex: URLs générées pour l'ESP32) sans exposer les paramètres complets.
