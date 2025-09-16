@@ -1226,13 +1226,34 @@
             jsonDisplay.textContent = JSON.stringify(data, null, 2);
         }
 
-        // Fonction pour encoder l'URL ESP32 (worker, paths=arg1,arg2 -> value0,value1,...)
+        // Fonction utilitaire: encodage base64 sûr pour URL
+        function encodeToBase64UrlSafe(text) {
+            try {
+                const b64 = btoa(unescape(encodeURIComponent(text)));
+                // URL-safe
+                return b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+            } catch (e) {
+                console.error('Erreur encodage base64:', e);
+                return '';
+            }
+        }
+
+        // Fonction pour encoder l'URL ESP32 (worker) avec filtres et mappages
         function encodeShortUrl(apiUrl, filters) {
             const workerBase = 'https://data-bridge.julienrat.workers.dev/';
             const targetUrlParam = `url=${encodeURIComponent(apiUrl)}`;
             const pathsJoined = (filters || []).join(',');
             const pathsParam = pathsJoined ? `paths=${encodeURIComponent(pathsJoined)}` : '';
-            const query = [targetUrlParam, pathsParam].filter(Boolean).join('&');
+
+            // Inclure l'état de mappage et les mappages (compactés en base64 url-safe)
+            const mappingEnabledParam = `mappingEnabled=${mappingSystemEnabled ? '1' : '0'}`;
+            const mappingsPayload = { mappings: dataMappings, mappingEnabled: mappingSystemEnabled };
+            const mappingsStr = JSON.stringify(mappingsPayload);
+            const mappingsParam = `mappings=${encodeURIComponent(encodeToBase64UrlSafe(mappingsStr))}`;
+
+            const query = [targetUrlParam, pathsParam, mappingEnabledParam, mappingsParam]
+                .filter(Boolean)
+                .join('&');
             return `${workerBase}?${query}`;
         }
 
