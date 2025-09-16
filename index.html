@@ -1293,7 +1293,8 @@
 const char* WIFI_SSID = "Votre_SSID";      // Nom du réseau WiFi
 const char* WIFI_PASSWORD = "Votre_MotDePasse"; // Mot de passe du WiFi
 
-// URL de l'endpoint généré par DataBridge (retourne des valeurs en texte)
+// URL de l'endpoint généré par DataBridge
+// Peut renvoyer du JSON (ex: {"response":[...]} ou une valeur) ou du texte simple
 const char* ENDPOINT_URL = "${shortUrl}";
 
 // Intervalle de rafraîchissement en secondes
@@ -1302,6 +1303,59 @@ int REFRESH_SECONDS = ${refreshSeconds};
 // ====== Programme Arduino simple pour ESP32 ======
 #include <WiFi.h>
 #include <HTTPClient.h>
+#include <ArduinoJson.h> // Installer la bibliothèque "ArduinoJson" via le gestionnaire de bibliothèques
+
+void printValuesFromJson(JsonVariant v) {
+  // Affiche proprement les valeurs détectées
+  if (v.is<JsonArray>()) {
+    JsonArray arr = v.as<JsonArray>();
+    Serial.println("Valeurs (tableau):");
+    for (size_t i = 0; i < arr.size(); i++) {
+      Serial.print("  ["); Serial.print(i); Serial.print("]: ");
+      if (arr[i].is<const char*>()) Serial.println(arr[i].as<const char*>());
+      else if (arr[i].is<long>()) Serial.println(arr[i].as<long>());
+      else if (arr[i].is<double>()) Serial.println(arr[i].as<double>(), 6);
+      else if (arr[i].is<bool>()) Serial.println(arr[i].as<bool>() ? "true" : "false");
+      else serializeJson(arr[i], Serial), Serial.println();
+    }
+  } else if (v.is<JsonObject>()) {
+    JsonObject obj = v.as<JsonObject>();
+    Serial.println("Objets clé/valeur:");
+    for (JsonPair kv : obj) {
+      Serial.print("  "); Serial.print(kv.key().c_str()); Serial.print(": ");
+      if (kv.value().is<const char*>()) Serial.println(kv.value().as<const char*>());
+      else if (kv.value().is<long>()) Serial.println(kv.value().as<long>());
+      else if (kv.value().is<double>()) Serial.println(kv.value().as<double>(), 6);
+      else if (kv.value().is<bool>()) Serial.println(kv.value().as<bool>() ? "true" : "false");
+      else serializeJson(kv.value(), Serial), Serial.println();
+    }
+  } else {
+    // Valeur simple
+    Serial.print("Valeur: ");
+    if (v.is<const char*>()) Serial.println(v.as<const char*>());
+    else if (v.is<long>()) Serial.println(v.as<long>());
+    else if (v.is<double>()) Serial.println(v.as<double>(), 6);
+    else if (v.is<bool>()) Serial.println(v.as<bool>() ? "true" : "false");
+    else serializeJson(v, Serial), Serial.println();
+  }
+}
+
+void printValuesFromPlainText(const String& text) {
+  // Fallback: si ce n'est pas du JSON, on traite comme texte simple, une valeur par ligne
+  Serial.println("Texte brut (fallback):");
+  int start = 0;
+  while (true) {
+    int idx = text.indexOf('\n', start);
+    String line = (idx >= 0) ? text.substring(start, idx) : text.substring(start);
+    line.trim();
+    if (line.length() > 0) {
+      Serial.print("  -> ");
+      Serial.println(line);
+    }
+    if (idx < 0) break;
+    start = idx + 1;
+  }
+}
 
 void setup() {
   Serial.begin(115200);
@@ -1328,16 +1382,24 @@ void loop() {
     int httpCode = http.GET();
 
     if (httpCode > 0) {
-      // 200 => OK, le corps contient les valeurs (une par ligne)
       String payload = http.getString();
       Serial.println("--- Réponse DataBridge ---");
-      Serial.println(payload);
 
-      // Exemple: découper par lignes si plusieurs valeurs
-      // (à adapter selon votre besoin)
-      // int firstNewline = payload.indexOf('\n');
-      // String value1 = firstNewline >= 0 ? payload.substring(0, firstNewline) : payload;
-      // Serial.printf("Valeur 1: %s\n", value1.c_str());
+      // Tentative de parsing JSON
+      StaticJsonDocument<2048> doc; // Ajuster au besoin selon la taille attendue
+      DeserializationError err = deserializeJson(doc, payload);
+      if (!err) {
+        // Plusieurs formes possibles: {"response": ...} ou tableau/valeur brute
+        if (doc.containsKey("response")) {
+          JsonVariant resp = doc["response"];
+          printValuesFromJson(resp);
+        } else {
+          printValuesFromJson(doc.as<JsonVariant>());
+        }
+      } else {
+        // Pas du JSON valide: afficher le texte brut (valeurs par ligne)
+        printValuesFromPlainText(payload);
+      }
     } else {
       Serial.printf("Erreur HTTP: %d\n", httpCode);
     }
