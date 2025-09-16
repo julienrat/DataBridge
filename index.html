@@ -523,6 +523,7 @@
                     <div style="margin-top: 16px;">
                         <h3>🔧 Exemple Arduino (ESP32) :</h3>
                         <pre id="arduinoCode" class="json-display" style="white-space: pre; overflow:auto;">L'exemple Arduino s'affichera ici après génération de l'URL.</pre>
+                        <button class="copy-btn" style="margin-top:10px;" onclick="copyArduinoCode()">Copier le code Arduino</button>
                     </div>
                 </div>
             </div>
@@ -1355,6 +1356,21 @@ void loop() {
             if (pre) {
                 pre.textContent = code;
             }
+        }
+
+        // Fonction pour copier le code Arduino généré
+        function copyArduinoCode() {
+            const pre = document.getElementById('arduinoCode');
+            const code = pre ? pre.textContent : '';
+            if (!code || code.includes("s'affichera ici")) {
+                showStatus('Aucun code à copier. Générez d\'abord une URL.', 'error');
+                return;
+            }
+            navigator.clipboard.writeText(code).then(() => {
+                showStatus('Code Arduino copié dans le presse-papiers !', 'success');
+            }).catch(() => {
+                showStatus('Impossible de copier le code automatiquement', 'error');
+            });
         }
 
         // Fonction pour sélectionner tous les filtres
