@@ -516,10 +516,14 @@
                 <div class="esp32-section" id="esp32Section" style="display: none;">
                     <h3>🔌 URL ESP32 :</h3>
                     <div id="esp32Url" class="esp32-url"></div>
-                    <button class="copy-btn" onclick="copyEsp32Url()">Copier l'URL</button>
+                    <button class="copy-btn" onclick="openEsp32Url()">Ouvrir l'URL</button>
                     <p style="margin-top: 10px; font-size: 14px; color: #666;">
                         <strong>URL courte générée !</strong> Cette URL retourne directement les valeurs filtrées en format texte simple (une valeur par ligne). L'ESP32 peut faire une requête GET sur cette URL pour récupérer uniquement les valeurs des champs sélectionnés. L'URL fonctionne depuis n'importe quel appareil connecté.
                     </p>
+                    <div style="margin-top: 16px;">
+                        <h3>🔧 Exemple Arduino (ESP32) :</h3>
+                        <pre id="arduinoCode" class="json-display" style="white-space: pre; overflow:auto;">L'exemple Arduino s'affichera ici après génération de l'URL.</pre>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1246,9 +1250,11 @@
         function generateEsp32Url(selectedFilters) {
             const esp32Section = document.getElementById('esp32Section');
             const esp32Url = document.getElementById('esp32Url');
+            const arduinoPre = document.getElementById('arduinoCode');
             
             if (selectedFilters.length === 0) {
                 esp32Section.style.display = 'none';
+                if (arduinoPre) arduinoPre.textContent = "";
                 return;
             }
 
@@ -1263,17 +1269,92 @@
             
             esp32Url.textContent = shortUrl;
             esp32Section.style.display = 'block';
+
+            // Générer et afficher le code Arduino avec la bonne URL et l'intervalle
+            generateArduinoCode(shortUrl);
         }
 
-        // Fonction pour copier l'URL ESP32
-        function copyEsp32Url() {
+        // Fonction pour ouvrir l'URL ESP32 dans un nouvel onglet
+        function openEsp32Url() {
             const esp32Url = document.getElementById('esp32Url').textContent;
-            navigator.clipboard.writeText(esp32Url).then(() => {
-                showStatus('URL ESP32 copiée dans le presse-papiers !', 'success');
-            }).catch(err => {
-                console.error('Erreur lors de la copie:', err);
-                showStatus('Erreur lors de la copie', 'error');
-            });
+            if (esp32Url) {
+                window.open(esp32Url, '_blank');
+            } else {
+                showStatus("Aucune URL à ouvrir", 'error');
+            }
+        }
+
+        // Fonction pour générer le code Arduino (ESP32)
+        function generateArduinoCode(shortUrl) {
+            const refreshSeconds = parseInt(document.getElementById('refreshInterval').value) || 30;
+            const code = `// ====== Configuration (variables en haut) ======
+// Renseignez votre réseau WiFi
+const char* WIFI_SSID = "Votre_SSID";      // Nom du réseau WiFi
+const char* WIFI_PASSWORD = "Votre_MotDePasse"; // Mot de passe du WiFi
+
+// URL de l'endpoint généré par DataBridge (retourne des valeurs en texte)
+const char* ENDPOINT_URL = "${shortUrl}";
+
+// Intervalle de rafraîchissement en secondes
+int REFRESH_SECONDS = ${refreshSeconds};
+
+// ====== Programme Arduino simple pour ESP32 ======
+#include <WiFi.h>
+#include <HTTPClient.h>
+
+void setup() {
+  Serial.begin(115200);
+  delay(200);
+
+  // Connexion au WiFi
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  Serial.print("Connexion au WiFi");
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print('.');
+  }
+  Serial.println();
+  Serial.print("Connecté. IP: ");
+  Serial.println(WiFi.localIP());
+}
+
+void loop() {
+  if (WiFi.status() == WL_CONNECTED) {
+    HTTPClient http;
+    // Requête GET simple sur l'endpoint
+    http.begin(ENDPOINT_URL);
+    int httpCode = http.GET();
+
+    if (httpCode > 0) {
+      // 200 => OK, le corps contient les valeurs (une par ligne)
+      String payload = http.getString();
+      Serial.println("--- Réponse DataBridge ---");
+      Serial.println(payload);
+
+      // Exemple: découper par lignes si plusieurs valeurs
+      // (à adapter selon votre besoin)
+      // int firstNewline = payload.indexOf('\n');
+      // String value1 = firstNewline >= 0 ? payload.substring(0, firstNewline) : payload;
+      // Serial.printf("Valeur 1: %s\n", value1.c_str());
+    } else {
+      Serial.printf("Erreur HTTP: %d\n", httpCode);
+    }
+
+    http.end();
+  } else {
+    Serial.println("WiFi déconnecté, tentative de reconnexion...");
+    WiFi.reconnect();
+  }
+
+  // Attendre avant la prochaine requête
+  delay(REFRESH_SECONDS * 1000);
+}`;
+
+            const pre = document.getElementById('arduinoCode');
+            if (pre) {
+                pre.textContent = code;
+            }
         }
 
         // Fonction pour sélectionner tous les filtres
