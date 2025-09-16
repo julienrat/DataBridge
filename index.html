@@ -445,7 +445,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🌉 DataBridge <span style="font-size: 0.9rem; font-weight: 700; background: rgba(0,0,0,0.15); padding: 4px 8px; border-radius: 8px; margin-left: 8px;">v0.2.9</span></h1>
+            <h1>🌉 DataBridge <span style="font-size: 0.9rem; font-weight: 700; background: rgba(0,0,0,0.15); padding: 4px 8px; border-radius: 8px; margin-left: 8px;">v0.3.0</span></h1>
             <p>Interface pour récupérer et filtrer des données JSON depuis n'importe quelle API</p>
         </div>
 
@@ -1221,30 +1221,12 @@
             jsonDisplay.textContent = JSON.stringify(data, null, 2);
         }
 
-        // Fonction pour encoder une URL courte
+        // Fonction pour encoder l'URL ESP32 (worker, sans raccourcissement ni mappage)
         function encodeShortUrl(apiUrl, filters) {
-            // Nouvelle génération d'URL pour ESP32 via worker Cloudflare
-            // Conserve tous les chemins (filters) en multiples paramètres `path` sans simplification
-
             const workerBase = 'https://data-bridge.julienrat.workers.dev/';
             const targetUrlParam = `url=${encodeURIComponent(apiUrl)}`;
             const pathParams = (filters || []).map(p => `path=${encodeURIComponent(p)}`).join('&');
-            // Inclure l'état de mappage et les paramètres si actifs
-            // On fournit les mappages en paramètre "m" (base64 JSON) pour que le worker puisse les appliquer côté serveur si souhaité
-            const mappingPayload = {
-                enabled: mappingSystemEnabled,
-                mappings: dataMappings.map(m => ({
-                    field: m.field,
-                    enabled: m.enabled,
-                    inputLow: m.inputLow,
-                    inputHigh: m.inputHigh,
-                    outputLow: m.outputLow,
-                    outputHigh: m.outputHigh
-                }))
-            };
-            const mappingParam = `m=${encodeURIComponent(btoa(JSON.stringify(mappingPayload)))}`;
-
-            const query = [targetUrlParam, pathParams, mappingParam].filter(Boolean).join('&');
+            const query = [targetUrlParam, pathParams].filter(Boolean).join('&');
             return `${workerBase}?${query}`;
         }
 
