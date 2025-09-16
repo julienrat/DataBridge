@@ -1272,7 +1272,7 @@
             esp32Section.style.display = 'block';
 
             // Générer et afficher le code Arduino avec la bonne URL et l'intervalle
-            generateArduinoCode(shortUrl);
+            generateArduinoCode(shortUrl, selectedFilters);
         }
 
         // Fonction pour ouvrir l'URL ESP32 dans un nouvel onglet
@@ -1286,8 +1286,11 @@
         }
 
         // Fonction pour générer le code Arduino (ESP32)
-        function generateArduinoCode(shortUrl) {
+        function generateArduinoCode(shortUrl, filters) {
             const refreshSeconds = parseInt(document.getElementById('refreshInterval').value) || 30;
+            const labels = (filters && filters.length) ? filters : [];
+            const labelsEscaped = labels.map(l => l.replace(/\\/g, "\\\\").replace(/"/g, '\\"'));
+            const labelsCppArray = labelsEscaped.length > 0 ? `const char* LABELS[] = { "${labelsEscaped.join('", "')}" };\nconst size_t LABELS_COUNT = ${labelsEscaped.length};` : `const char* LABELS[] = {};\nconst size_t LABELS_COUNT = 0;`;
             const code = `// ====== Configuration (variables en haut) ======
 // Renseignez votre réseau WiFi
 const char* WIFI_SSID = "Votre_SSID";      // Nom du réseau WiFi
@@ -1303,54 +1306,35 @@ int REFRESH_SECONDS = ${refreshSeconds};
 // ====== Programme Arduino simple pour ESP32 ======
 #include <WiFi.h>
 #include <HTTPClient.h>
-#include <ArduinoJson.h> // Installer la bibliothèque "ArduinoJson" via le gestionnaire de bibliothèques
+#include <ArduinoJson.h> // Installer "ArduinoJson" via le gestionnaire de bibliothèques
 
-void printValuesFromJson(JsonVariant v) {
-  // Affiche proprement les valeurs détectées
-  if (v.is<JsonArray>()) {
-    JsonArray arr = v.as<JsonArray>();
-    Serial.println("Valeurs (tableau):");
-    for (size_t i = 0; i < arr.size(); i++) {
-      Serial.print("  ["); Serial.print(i); Serial.print("]: ");
-      if (arr[i].is<const char*>()) Serial.println(arr[i].as<const char*>());
-      else if (arr[i].is<long>()) Serial.println(arr[i].as<long>());
-      else if (arr[i].is<double>()) Serial.println(arr[i].as<double>(), 6);
-      else if (arr[i].is<bool>()) Serial.println(arr[i].as<bool>() ? "true" : "false");
-      else serializeJson(arr[i], Serial), Serial.println();
-    }
-  } else if (v.is<JsonObject>()) {
-    JsonObject obj = v.as<JsonObject>();
-    Serial.println("Objets clé/valeur:");
-    for (JsonPair kv : obj) {
-      Serial.print("  "); Serial.print(kv.key().c_str()); Serial.print(": ");
-      if (kv.value().is<const char*>()) Serial.println(kv.value().as<const char*>());
-      else if (kv.value().is<long>()) Serial.println(kv.value().as<long>());
-      else if (kv.value().is<double>()) Serial.println(kv.value().as<double>(), 6);
-      else if (kv.value().is<bool>()) Serial.println(kv.value().as<bool>() ? "true" : "false");
-      else serializeJson(kv.value(), Serial), Serial.println();
-    }
-  } else {
-    // Valeur simple
-    Serial.print("Valeur: ");
-    if (v.is<const char*>()) Serial.println(v.as<const char*>());
-    else if (v.is<long>()) Serial.println(v.as<long>());
-    else if (v.is<double>()) Serial.println(v.as<double>(), 6);
-    else if (v.is<bool>()) Serial.println(v.as<bool>() ? "true" : "false");
-    else serializeJson(v, Serial), Serial.println();
+// Étiquettes des valeurs sélectionnées (dans l'ordre)
+${labelsCppArray}
+
+// Affiche un tableau de valeurs avec des étiquettes si disponibles
+void printLabeledArray(JsonArray arr) {
+  for (size_t i = 0; i < arr.size(); i++) {
+    Serial.print("- "); Serial.print(i); Serial.print(" ("); Serial.print(i < LABELS_COUNT ? LABELS[i] : "valeur"); Serial.print(") : ");
+    if (arr[i].is<const char*>()) Serial.println(arr[i].as<const char*>());
+    else if (arr[i].is<long>()) Serial.println(arr[i].as<long>());
+    else if (arr[i].is<double>()) Serial.println(arr[i].as<double>(), 6);
+    else if (arr[i].is<bool>()) Serial.println(arr[i].as<bool>() ? "true" : "false");
+    else serializeJson(arr[i], Serial), Serial.println();
   }
 }
 
-void printValuesFromPlainText(const String& text) {
-  // Fallback: si ce n'est pas du JSON, on traite comme texte simple, une valeur par ligne
-  Serial.println("Texte brut (fallback):");
+// Fallback texte simple: affiche chaque ligne avec étiquette si possible
+void printPlainTextLabeled(const String& text) {
+  int index = 0;
   int start = 0;
   while (true) {
     int idx = text.indexOf('\n', start);
     String line = (idx >= 0) ? text.substring(start, idx) : text.substring(start);
     line.trim();
     if (line.length() > 0) {
-      Serial.print("  -> ");
+      Serial.print("- "); Serial.print(index); Serial.print(" ("); Serial.print(index < LABELS_COUNT ? LABELS[index] : "valeur"); Serial.print(") : ");
       Serial.println(line);
+      index++;
     }
     if (idx < 0) break;
     start = idx + 1;
@@ -1386,19 +1370,34 @@ void loop() {
       Serial.println("--- Réponse DataBridge ---");
 
       // Tentative de parsing JSON
-      StaticJsonDocument<2048> doc; // Ajuster au besoin selon la taille attendue
+      StaticJsonDocument<2048> doc; // Ajuster si nécessaire
       DeserializationError err = deserializeJson(doc, payload);
       if (!err) {
-        // Plusieurs formes possibles: {"response": ...} ou tableau/valeur brute
-        if (doc.containsKey("response")) {
-          JsonVariant resp = doc["response"];
-          printValuesFromJson(resp);
+        JsonVariant root = doc.containsKey("response") ? doc["response"] : doc.as<JsonVariant>();
+        if (root.is<JsonArray>()) {
+          printLabeledArray(root.as<JsonArray>());
+        } else if (root.is<JsonObject>()) {
+          // Affiche chaque paire clé/valeur
+          for (JsonPair kv : root.as<JsonObject>()) {
+            Serial.print("- "); Serial.print(kv.key().c_str()); Serial.print(" : ");
+            if (kv.value().is<const char*>()) Serial.println(kv.value().as<const char*>());
+            else if (kv.value().is<long>()) Serial.println(kv.value().as<long>());
+            else if (kv.value().is<double>()) Serial.println(kv.value().as<double>(), 6);
+            else if (kv.value().is<bool>()) Serial.println(kv.value().as<bool>() ? "true" : "false");
+            else serializeJson(kv.value(), Serial), Serial.println();
+          }
         } else {
-          printValuesFromJson(doc.as<JsonVariant>());
+          // Valeur simple
+          Serial.print("- valeur : ");
+          if (root.is<const char*>()) Serial.println(root.as<const char*>());
+          else if (root.is<long>()) Serial.println(root.as<long>());
+          else if (root.is<double>()) Serial.println(root.as<double>(), 6);
+          else if (root.is<bool>()) Serial.println(root.as<bool>() ? "true" : "false");
+          else serializeJson(root, Serial), Serial.println();
         }
       } else {
-        // Pas du JSON valide: afficher le texte brut (valeurs par ligne)
-        printValuesFromPlainText(payload);
+        // Pas du JSON valide: texte brut (une valeur par ligne)
+        printPlainTextLabeled(payload);
       }
     } else {
       Serial.printf("Erreur HTTP: %d\n", httpCode);
