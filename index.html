@@ -445,7 +445,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🌉 DataBridge <span style="font-size: 0.9rem; font-weight: 700; background: rgba(0,0,0,0.15); padding: 4px 8px; border-radius: 8px; margin-left: 8px;">v0.3.0</span></h1>
+            <h1>🌉 DataBridge <span style="font-size: 0.9rem; font-weight: 700; background: rgba(0,0,0,0.15); padding: 4px 8px; border-radius: 8px; margin-left: 8px;">v0.3.1</span></h1>
             <p>Interface pour récupérer et filtrer des données JSON depuis n'importe quelle API</p>
         </div>
 
@@ -1221,12 +1221,13 @@
             jsonDisplay.textContent = JSON.stringify(data, null, 2);
         }
 
-        // Fonction pour encoder l'URL ESP32 (worker, sans raccourcissement ni mappage)
+        // Fonction pour encoder l'URL ESP32 (worker, path=arg1,arg2)
         function encodeShortUrl(apiUrl, filters) {
             const workerBase = 'https://data-bridge.julienrat.workers.dev/';
             const targetUrlParam = `url=${encodeURIComponent(apiUrl)}`;
-            const pathParams = (filters || []).map(p => `path=${encodeURIComponent(p)}`).join('&');
-            const query = [targetUrlParam, pathParams].filter(Boolean).join('&');
+            const pathsJoined = (filters || []).join(',');
+            const pathParam = pathsJoined ? `path=${encodeURIComponent(pathsJoined)}` : '';
+            const query = [targetUrlParam, pathParam].filter(Boolean).join('&');
             return `${workerBase}?${query}`;
         }
 
