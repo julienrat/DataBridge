@@ -1199,7 +1199,7 @@
 
                 const inputs = controls.querySelectorAll('input[type="number"]');
                 inputs.forEach(input => {
-                    input.disabled = false;
+                    input.disabled = !mappingSystemEnabled;
                 });
             });
         }
