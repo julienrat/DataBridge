@@ -445,7 +445,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🌉 DataBridge <span style="font-size: 0.9rem; font-weight: 700; background: rgba(0,0,0,0.15); padding: 4px 8px; border-radius: 8px; margin-left: 8px;">v0.3.2</span></h1>
+            <h1>🌉 DataBridge <span style="font-size: 0.9rem; font-weight: 700; background: rgba(0,0,0,0.15); padding: 4px 8px; border-radius: 8px; margin-left: 8px;">v0.3.3</span></h1>
             <p>Interface pour récupérer et filtrer des données JSON depuis n'importe quelle API</p>
         </div>
 
@@ -645,6 +645,13 @@
             let fieldsToMap = numericSelectedFields;
             if (fieldsToMap.length === 0) {
                 mappingSection.style.display = 'none';
+                // Désactiver le système de mappage si aucun champ numérique n'est sélectionné
+                mappingSystemEnabled = false;
+                const globalToggle = document.getElementById('mappingEnabled');
+                if (globalToggle) {
+                    globalToggle.checked = false;
+                    globalToggle.disabled = true;
+                }
                 return;
             }
             
@@ -1246,7 +1253,10 @@
             const pathsParam = pathsJoined ? `paths=${encodeURIComponent(pathsJoined)}` : '';
 
             // Inclure l'état de mappage et les mappages en clair (lisibles)
-            const mappingEnabledParam = `mappingEnabled=${mappingSystemEnabled ? '1' : '0'}`;
+            // Lire l'état réel de la case si présente; sinon fallback sur l'état mémoire
+            const mappingCheckbox = document.getElementById('mappingEnabled');
+            const mappingEnabledFlag = mappingCheckbox ? (mappingCheckbox.checked ? '1' : '0') : (mappingSystemEnabled ? '1' : '0');
+            const mappingEnabledParam = `mappingEnabled=${mappingEnabledFlag}`;
             const mappingParams = (dataMappings || []).map(m => {
                 const tuple = [
                     m.field,
@@ -1564,7 +1574,12 @@ void loop() {
             currentData = null;
             filteredData = null;
             dataMappings = []; // Réinitialiser les mappages
-            mappingSystemEnabled = true; // Réinitialiser l'état du mappage
+            mappingSystemEnabled = false; // Désactiver par défaut
+            const globalToggle = document.getElementById('mappingEnabled');
+            if (globalToggle) {
+                globalToggle.checked = false;
+                globalToggle.disabled = true;
+            }
             document.getElementById('apiUrl').value = '';
             document.getElementById('jsonDisplay').textContent = 'Aucune donnée chargée. Veuillez saisir une URL d\'API et cliquer sur "Récupérer les données".';
             document.getElementById('filtersSection').style.display = 'none';
