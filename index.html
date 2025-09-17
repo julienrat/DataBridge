@@ -445,7 +445,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🌉 DataBridge <span style="font-size: 0.9rem; font-weight: 700; background: rgba(0,0,0,0.15); padding: 4px 8px; border-radius: 8px; margin-left: 8px;">v0.3.4</span></h1>
+            <h1>🌉 DataBridge <span style="font-size: 0.9rem; font-weight: 700; background: rgba(0,0,0,0.15); padding: 4px 8px; border-radius: 8px; margin-left: 8px;">v0.3.5</span></h1>
             <p>Interface pour récupérer et filtrer des données JSON depuis n'importe quelle API</p>
         </div>
 
@@ -663,13 +663,13 @@
             });
             
             mappingSection.style.display = 'block';
-            // Activer le système de mappage maintenant qu'au moins un champ numérique est sélectionné
+            // Ne pas forcer l'état: respecter l'état courant de mappingSystemEnabled
             const globalToggle = document.getElementById('inputenabled');
             if (globalToggle) {
-                globalToggle.checked = true;
                 globalToggle.disabled = false;
+                globalToggle.checked = !!mappingSystemEnabled;
             }
-            // S'assurer que l'état d'activation/désactivation est bien appliqué aux contrôles
+            // Appliquer l'état courant aux contrôles
             syncMappingControlsState();
         }
 
