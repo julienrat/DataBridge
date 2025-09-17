@@ -1357,7 +1357,7 @@ void printPlainTextLabeled(const String& text) {
   int index = 0;
   int start = 0;
   while (true) {
-    int idx = text.indexOf('\n', start);
+    int idx = text.indexOf('\\n', start);
     String line = (idx >= 0) ? text.substring(start, idx) : text.substring(start);
     line.trim();
     if (line.length() > 0) {
@@ -1429,7 +1429,7 @@ void loop() {
         printPlainTextLabeled(payload);
       }
     } else {
-      Serial.printf("Erreur HTTP: %d\n", httpCode);
+      Serial.printf("Erreur HTTP: %d\\n", httpCode);
     }
 
     http.end();
