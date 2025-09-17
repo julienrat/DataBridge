@@ -1319,7 +1319,7 @@
             const refreshSeconds = parseInt(document.getElementById('refreshInterval').value) || 30;
             const labels = (filters && filters.length) ? filters : [];
             const labelsEscaped = labels.map(l => l.replace(/\\/g, "\\\\").replace(/"/g, '\\"'));
-            const labelsCppArray = labelsEscaped.length > 0 ? `const char* LABELS[] = { "${labelsEscaped.join('", "')}" };\nconst size_t LABELS_COUNT = ${labelsEscaped.length};` : `const char* LABELS[] = {};\nconst size_t LABELS_COUNT = 0;`;
+            const labelsCppArray = labelsEscaped.length > 0 ? `const char* LABELS[] = { "${labelsEscaped.join('", "')}" }\nconst size_t LABELS_COUNT = ${labelsEscaped.length};` : `const char* LABELS[] = {};\nconst size_t LABELS_COUNT = 0;`;
             const code = `// ====== Configuration (variables en haut) ======
 // Renseignez votre réseau WiFi
 const char* WIFI_SSID = "Votre_SSID";      // Nom du réseau WiFi
@@ -1340,6 +1340,11 @@ int REFRESH_SECONDS = ${refreshSeconds};
 // Étiquettes des valeurs sélectionnées (dans l'ordre)
 ${labelsCppArray}
 
+// Taille maximale du tableau de valeurs reçu
+#ifndef MAX_VALUES
+#define MAX_VALUES 32
+#endif
+
 // Affiche un tableau de valeurs avec des étiquettes si disponibles
 void printLabeledArray(JsonArray arr) {
   for (size_t i = 0; i < arr.size(); i++) {
@@ -1357,7 +1362,7 @@ void printPlainTextLabeled(const String& text) {
   int index = 0;
   int start = 0;
   while (true) {
-    int idx = text.indexOf('\\n', start);
+    int idx = text.indexOf('\n', start);
     String line = (idx >= 0) ? text.substring(start, idx) : text.substring(start);
     line.trim();
     if (line.length() > 0) {
@@ -1368,6 +1373,107 @@ void printPlainTextLabeled(const String& text) {
     if (idx < 0) break;
     start = idx + 1;
   }
+}
+
+// Convertit un JsonVariant (réponse ou valeur) en tableau de floats ordonné
+// Renvoie true si au moins une valeur a été extraite
+bool parseJsonToValues(JsonVariant root, float* outValues, size_t maxValues, size_t& outCount) {
+  outCount = 0;
+  if (root.is<JsonArray>()) {
+    JsonArray arr = root.as<JsonArray>();
+    for (JsonVariant v : arr) {
+      if (outCount >= maxValues) break;
+      if (v.is<double>()) outValues[outCount++] = static_cast<float>(v.as<double>());
+      else if (v.is<long>()) outValues[outCount++] = static_cast<float>(v.as<long>());
+      else if (v.is<const char*>()) outValues[outCount++] = String(v.as<const char*>()).toFloat();
+      else if (v.is<bool>()) outValues[outCount++] = v.as<bool>() ? 1.0f : 0.0f;
+    }
+    return outCount > 0;
+  }
+  if (root.is<JsonObject>()) {
+    JsonObject obj = root.as<JsonObject>();
+    // Si des labels sont fournis, respecter l'ordre
+    if (LABELS_COUNT > 0) {
+      for (size_t i = 0; i < LABELS_COUNT && outCount < maxValues; i++) {
+        JsonVariant v = obj[LABELS[i]];
+        if (v.isNull()) continue;
+        if (v.is<double>()) outValues[outCount++] = static_cast<float>(v.as<double>());
+        else if (v.is<long>()) outValues[outCount++] = static_cast<float>(v.as<long>());
+        else if (v.is<const char*>()) outValues[outCount++] = String(v.as<const char*>()).toFloat();
+        else if (v.is<bool>()) outValues[outCount++] = v.as<bool>() ? 1.0f : 0.0f;
+      }
+    } else {
+      // Sinon, itérer sur les paires (ordre non garanti)
+      for (JsonPair kv : obj) {
+        if (outCount >= maxValues) break;
+        JsonVariant v = kv.value();
+        if (v.is<double>()) outValues[outCount++] = static_cast<float>(v.as<double>());
+        else if (v.is<long>()) outValues[outCount++] = static_cast<float>(v.as<long>());
+        else if (v.is<const char*>()) outValues[outCount++] = String(v.as<const char*>()).toFloat();
+        else if (v.is<bool>()) outValues[outCount++] = v.as<bool>() ? 1.0f : 0.0f;
+      }
+    }
+    return outCount > 0;
+  }
+  // Valeur simple
+  if (root.is<double>()) { outValues[outCount++] = static_cast<float>(root.as<double>()); return true; }
+  if (root.is<long>())   { outValues[outCount++] = static_cast<float>(root.as<long>());   return true; }
+  if (root.is<const char*>()) { outCount = 1; outValues[0] = String(root.as<const char*>()).toFloat(); return true; }
+  if (root.is<bool>()) { outValues[outCount++] = root.as<bool>() ? 1.0f : 0.0f; return true; }
+  return false;
+}
+
+// Décode un texte brut (une valeur par ligne) en floats
+bool parseTextToValues(const String& text, float* outValues, size_t maxValues, size_t& outCount) {
+  outCount = 0;
+  int start = 0;
+  while (outCount < maxValues) {
+    int idx = text.indexOf('\n', start);
+    String line = (idx >= 0) ? text.substring(start, idx) : text.substring(start);
+    line.trim();
+    if (line.length() > 0) {
+      outValues[outCount++] = line.toFloat();
+    }
+    if (idx < 0) break;
+    start = idx + 1;
+  }
+  return outCount > 0;
+}
+
+// Récupère les valeurs (HTTP GET + parse JSON/texte)
+// Retourne true si succès et remplit outValues dans l'ordre des LABELS (si fournis)
+bool getMappedValues(float* outValues, size_t maxValues, size_t& outCount, String& error) {
+  outCount = 0;
+  error = String();
+  HTTPClient http;
+  http.begin(ENDPOINT_URL);
+  int httpCode = http.GET();
+  if (httpCode <= 0) {
+    error = String("Erreur HTTP: ") + httpCode;
+    http.end();
+    return false;
+  }
+
+  String payload = http.getString();
+  http.end();
+
+  // Essayer JSON d'abord
+  StaticJsonDocument<4096> doc;
+  DeserializationError err = deserializeJson(doc, payload);
+  if (!err) {
+    JsonVariant root = doc.containsKey("response") ? doc["response"].as<JsonVariant>() : doc.as<JsonVariant>();
+    if (parseJsonToValues(root, outValues, maxValues, outCount)) {
+      return true;
+    }
+  }
+
+  // Sinon, parser comme texte
+  if (parseTextToValues(payload, outValues, maxValues, outCount)) {
+    return true;
+  }
+
+  error = "Réponse vide ou non exploitable";
+  return false;
 }
 
 void setup() {
@@ -1388,59 +1494,35 @@ void setup() {
 }
 
 void loop() {
-  if (WiFi.status() == WL_CONNECTED) {
-    HTTPClient http;
-    // Requête GET simple sur l'endpoint
-    http.begin(ENDPOINT_URL);
-    int httpCode = http.GET();
-
-    if (httpCode > 0) {
-      String payload = http.getString();
-      Serial.println("--- Réponse DataBridge ---");
-
-      // Tentative de parsing JSON
-      StaticJsonDocument<2048> doc; // Ajuster si nécessaire
-      DeserializationError err = deserializeJson(doc, payload);
-      if (!err) {
-        JsonVariant root = doc.containsKey("response") ? doc["response"].as<JsonVariant>() : doc.as<JsonVariant>();
-        if (root.is<JsonArray>()) {
-          printLabeledArray(root.as<JsonArray>());
-        } else if (root.is<JsonObject>()) {
-          // Affiche chaque paire clé/valeur
-          for (JsonPair kv : root.as<JsonObject>()) {
-            Serial.print("- "); Serial.print(kv.key().c_str()); Serial.print(" : ");
-            if (kv.value().is<const char*>()) Serial.println(kv.value().as<const char*>());
-            else if (kv.value().is<long>()) Serial.println(kv.value().as<long>());
-            else if (kv.value().is<double>()) Serial.println(kv.value().as<double>(), 6);
-            else if (kv.value().is<bool>()) Serial.println(kv.value().as<bool>() ? "true" : "false");
-            else serializeJson(kv.value(), Serial), Serial.println();
-          }
-        } else {
-          // Valeur simple
-          Serial.print("- valeur : ");
-          if (root.is<const char*>()) Serial.println(root.as<const char*>());
-          else if (root.is<long>()) Serial.println(root.as<long>());
-          else if (root.is<double>()) Serial.println(root.as<double>(), 6);
-          else if (root.is<bool>()) Serial.println(root.as<bool>() ? "true" : "false");
-          else serializeJson(root, Serial), Serial.println();
-        }
-      } else {
-        // Pas du JSON valide: texte brut (une valeur par ligne)
-        printPlainTextLabeled(payload);
-      }
-    } else {
-      Serial.printf("Erreur HTTP: %d\\n", httpCode);
-    }
-
-    http.end();
-  } else {
+  if (WiFi.status() != WL_CONNECTED) {
     Serial.println("WiFi déconnecté, tentative de reconnexion...");
     WiFi.reconnect();
+  } else {
+    // Récupération simple des valeurs prêtes à l'emploi
+    float values[MAX_VALUES];
+    size_t count = 0;
+    String error;
+    if (getMappedValues(values, MAX_VALUES, count, error)) {
+      // >>> C'EST ICI QUE VOUS UTILISEZ LES VALEURS REÇUES <<<
+      // Exemple: si vous avez sélectionné 1 valeur, elle est dans values[0]
+      // - Afficher
+      Serial.print("Valeurs reçues ("), Serial.print(count), Serial.println("):");
+      for (size_t i = 0; i < count; i++) {
+        Serial.print("  ");
+        if (i < LABELS_COUNT) { Serial.print(LABELS[i]); Serial.print(": "); }
+        Serial.println(values[i]);
+      }
+      // - Utiliser: ex. piloter une LED, un servo, envoyer vers MQTT, etc.
+      //   float temperature = values[0];
+      //   if (temperature > 25.0) { /* allumer ventilateur */ }
+    } else {
+      Serial.print("Erreur: "); Serial.println(error);
+    }
+    // Attendre avant la prochaine requête
+    delay(REFRESH_SECONDS * 1000);
   }
-
-  // Attendre avant la prochaine requête
-  delay(REFRESH_SECONDS * 1000);
-}`;
+}
+`;
 
             const pre = document.getElementById('arduinoCode');
             if (pre) {
