@@ -1402,7 +1402,7 @@ void loop() {
       StaticJsonDocument<2048> doc; // Ajuster si nécessaire
       DeserializationError err = deserializeJson(doc, payload);
       if (!err) {
-        JsonVariant root = doc.containsKey("response") ? doc["response"] : doc.as<JsonVariant>();
+        JsonVariant root = doc.containsKey("response") ? doc["response"].as<JsonVariant>() : doc.as<JsonVariant>();
         if (root.is<JsonArray>()) {
           printLabeledArray(root.as<JsonArray>());
         } else if (root.is<JsonObject>()) {
