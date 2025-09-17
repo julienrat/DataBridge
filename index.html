@@ -445,7 +445,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🌉 DataBridge <span style="font-size: 0.9rem; font-weight: 700; background: rgba(0,0,0,0.15); padding: 4px 8px; border-radius: 8px; margin-left: 8px;">v0.3.6</span></h1>
+            <h1>🌉 DataBridge <span style="font-size: 0.9rem; font-weight: 700; background: rgba(0,0,0,0.15); padding: 4px 8px; border-radius: 8px; margin-left: 8px;">v0.3.7</span></h1>
             <p>Interface pour récupérer et filtrer des données JSON depuis n'importe quelle API</p>
         </div>
 
@@ -1327,7 +1327,7 @@
             const refreshSeconds = parseInt(document.getElementById('refreshInterval').value) || 30;
             const labels = (filters && filters.length) ? filters : [];
             const labelsEscaped = labels.map(l => l.replace(/\\/g, "\\\\").replace(/"/g, '\\"'));
-            const labelsCppArray = labelsEscaped.length > 0 ? `const char* LABELS[] = { "${labelsEscaped.join('", "')}" }\nconst size_t LABELS_COUNT = ${labelsEscaped.length};` : `const char* LABELS[] = {};\nconst size_t LABELS_COUNT = 0;`;
+            const labelsCppArray = labelsEscaped.length > 0 ? `const char* LABELS[] = { "${labelsEscaped.join('", "')}" };\nconst size_t LABELS_COUNT = ${labelsEscaped.length};` : `const char* LABELS[] = {};\nconst size_t LABELS_COUNT = 0;`;
             const code = `// ====== Configuration (variables en haut) ======
 // Renseignez votre réseau WiFi
 const char* WIFI_SSID = "Votre_SSID";      // Nom du réseau WiFi
