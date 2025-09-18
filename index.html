@@ -445,7 +445,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🌉 DataBridge <span style="font-size: 0.9rem; font-weight: 700; background: rgba(0,0,0,0.15); padding: 4px 8px; border-radius: 8px; margin-left: 8px;">v0.3.7</span></h1>
+            <h1>🌉 DataBridge <span style="font-size: 0.9rem; font-weight: 700; background: rgba(0,0,0,0.15); padding: 4px 8px; border-radius: 8px; margin-left: 8px;">v0.3.8</span></h1>
             <p>Interface pour récupérer et filtrer des données JSON depuis n'importe quelle API</p>
         </div>
 
@@ -521,9 +521,18 @@
                         <strong>URL courte générée !</strong> Cette URL retourne directement les valeurs filtrées en format texte simple (une valeur par ligne). L'ESP32 peut faire une requête GET sur cette URL pour récupérer uniquement les valeurs des champs sélectionnés. L'URL fonctionne depuis n'importe quel appareil connecté.
                     </p>
                     <div style="margin-top: 16px;">
-                        <h3>🔧 Exemple Arduino (ESP32) :</h3>
-                        <pre id="arduinoCode" class="json-display" style="white-space: pre; overflow:auto;">L'exemple Arduino s'affichera ici après génération de l'URL.</pre>
-                        <button class="copy-btn" style="margin-top:10px;" onclick="copyArduinoCode()">Copier le code Arduino</button>
+                        <div style="display:flex; gap:8px; margin-bottom:10px;">
+                            <button id="tabArduino" class="copy-btn" onclick="showCodeTab('arduino')">Exemple Arduino (ESP32)</button>
+                            <button id="tabMicroPython" class="copy-btn" onclick="showCodeTab('micropython')">Exemple MicroPython (ESP32)</button>
+                        </div>
+                        <div id="codeArduinoBlock">
+                            <pre id="arduinoCode" class="json-display" style="white-space: pre; overflow:auto;">L'exemple Arduino s'affichera ici après génération de l'URL.</pre>
+                            <button class="copy-btn" style="margin-top:10px;" onclick="copyArduinoCode()">Copier le code Arduino</button>
+                        </div>
+                        <div id="codeMicroPythonBlock" style="display:none;">
+                            <pre id="micropythonCode" class="json-display" style="white-space: pre; overflow:auto;">L'exemple MicroPython s'affichera ici après génération de l'URL.</pre>
+                            <button class="copy-btn" style="margin-top:10px;" onclick="copyMicroPythonCode()">Copier le code MicroPython</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1288,11 +1297,9 @@
         function generateEsp32Url(selectedFilters) {
             const esp32Section = document.getElementById('esp32Section');
             const esp32Url = document.getElementById('esp32Url');
-            const arduinoPre = document.getElementById('arduinoCode');
             
             if (selectedFilters.length === 0) {
                 esp32Section.style.display = 'none';
-                if (arduinoPre) arduinoPre.textContent = "";
                 return;
             }
 
@@ -1308,8 +1315,9 @@
             esp32Url.textContent = shortUrl;
             esp32Section.style.display = 'block';
 
-            // Générer et afficher le code Arduino avec la bonne URL et l'intervalle
+            // Générer et afficher le code Arduino/MicroPython avec la bonne URL et l'intervalle
             generateArduinoCode(shortUrl, selectedFilters);
+            generateMicroPythonCode(shortUrl, selectedFilters);
         }
 
         // Fonction pour ouvrir l'URL ESP32 dans un nouvel onglet
@@ -1548,6 +1556,53 @@ void loop() {
             }
             navigator.clipboard.writeText(code).then(() => {
                 showStatus('Code Arduino copié dans le presse-papiers !', 'success');
+            }).catch(() => {
+                showStatus('Impossible de copier le code automatiquement', 'error');
+            });
+        }
+
+        // Fonction pour générer le code MicroPython (ESP32)
+        function generateMicroPythonCode(shortUrl, filters) {
+            const refreshSeconds = parseInt(document.getElementById('refreshInterval').value) || 30;
+            const labels = (filters && filters.length) ? filters : [];
+            const labelsPyArray = labels.length > 0 ? `LABELS = [${labels.map(l => `"${l.replace(/"/g, '\\"')}"`).join(', ')}]` : `LABELS = []`;
+            const code = `import network\nimport urequests\nimport ujson\nimport time\n\n# ====== Configuration ======\nWIFI_SSID = "Votre_SSID"\nWIFI_PASSWORD = "Votre_MotDePasse"\n\nENDPOINT_URL = "${shortUrl}"\n\nREFRESH_SECONDS = ${refreshSeconds}\n\n# Liste des labels attendus\n${labelsPyArray}\n\n# ====== Connexion WiFi ======\ndef connect_wifi():\n    wlan = network.WLAN(network.STA_IF)\n    wlan.active(True)\n    if not wlan.isconnected():\n        print("Connexion au WiFi...")\n        wlan.connect(WIFI_SSID, WIFI_PASSWORD)\n        while not wlan.isconnected():\n            time.sleep(0.5)\n            print(".", end="")\n    print("\nConnecté. IP:", wlan.ifconfig()[0])\n\n# ====== Récupération des données ======\ndef get_values():\n    try:\n        resp = urequests.get(ENDPOINT_URL)\n        text = resp.text\n        resp.close()\n\n        try:\n            data = ujson.loads(text)\n        except ValueError:\n            # Réponse brute (texte)\n            lines = [l.strip() for l in text.split("\n") if l.strip()]\n            vals = []\n            for l in lines:\n                try:\n                    vals.append(float(l))\n                except:\n                    pass\n            return vals\n\n        # JSON : soit {"response":[...]} soit valeur directe\n        root = data.get("response", data)\n\n        values = []\n        if isinstance(root, list):\n            for v in root:\n                try:\n                    values.append(float(v))\n                except:\n                    pass\n        elif isinstance(root, dict):\n            if LABELS:\n                for key in LABELS:\n                    v = root.get(key, None)\n                    if v is not None:\n                        try:\n                            values.append(float(v))\n                        except:\n                            pass\n            else:\n                for _, v in root.items():\n                    try:\n                        values.append(float(v))\n                    except:\n                        pass\n        else:\n            try:\n                values.append(float(root))\n            except:\n                pass\n\n        return values\n\n    except Exception as e:\n        print("Erreur:", e)\n        return []\n\n# ====== Programme principal ======\nconnect_wifi()\n\nwhile True:\n    vals = get_values()\n    if vals:\n        print("Valeurs reçues :")\n        for i, v in enumerate(vals):\n            label = LABELS[i] if i < len(LABELS) else f"valeur{i}"\n            print(f"  {label}: {v}")\n    else:\n        print("Aucune donnée reçue.")\n\n    time.sleep(REFRESH_SECONDS)`;
+
+            const pre = document.getElementById('micropythonCode');
+            if (pre) {
+                pre.textContent = code;
+            }
+        }
+
+        // Switch onglet code
+        function showCodeTab(which) {
+            const arduinoBlock = document.getElementById('codeArduinoBlock');
+            const microBlock = document.getElementById('codeMicroPythonBlock');
+            const tabA = document.getElementById('tabArduino');
+            const tabM = document.getElementById('tabMicroPython');
+            if (which === 'micropython') {
+                arduinoBlock.style.display = 'none';
+                microBlock.style.display = 'block';
+                if (tabA) tabA.style.opacity = '0.7';
+                if (tabM) tabM.style.opacity = '1';
+            } else {
+                arduinoBlock.style.display = 'block';
+                microBlock.style.display = 'none';
+                if (tabA) tabA.style.opacity = '1';
+                if (tabM) tabM.style.opacity = '0.7';
+            }
+        }
+
+        // Copier MicroPython
+        function copyMicroPythonCode() {
+            const pre = document.getElementById('micropythonCode');
+            const code = pre ? pre.textContent : '';
+            if (!code || code.includes("s'affichera ici")) {
+                showStatus('Aucun code à copier. Générez d\'abord une URL.', 'error');
+                return;
+            }
+            navigator.clipboard.writeText(code).then(() => {
+                showStatus('Code MicroPython copié dans le presse-papiers !', 'success');
             }).catch(() => {
                 showStatus('Impossible de copier le code automatiquement', 'error');
             });
